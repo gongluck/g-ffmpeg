@@ -127,7 +127,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\gavbase.cpp" />
     <ClCompile Include="test\test.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\gavbase.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
