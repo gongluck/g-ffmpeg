@@ -26,35 +26,29 @@ extern "C"
 }
 #endif
 
-namespace gff
-{
 // 检查停止状态
 #define CHECKSTOP() \
+if(this->status_ != STOP)\
 {\
-        if (this->status_ != STOP)\
-        {\
-            av_log(nullptr, AV_LOG_ERROR, "%s %d : %ld\n", __FILE__, __LINE__, AVERROR(EBUSY));\
-            return AVERROR(EBUSY);\
-        }\
+    av_log(nullptr, AV_LOG_ERROR, "%s %d : %ld\n", __FILE__, __LINE__, AVERROR(EBUSY));\
+    return AVERROR(EINVAL);\
 }
 #define CHECKNOTSTOP() \
-    {\
-        if (this->status_ == STOP)\
-        {\
-            av_log(nullptr, AV_LOG_ERROR, "%s %d : %ld\n", __FILE__, __LINE__, AVERROR(EINVAL));\
-            return AVERROR(EINVAL);\
-        }\
-    }
-
-    // 检查ffmpeg返回值
-#define CHECKFFRET(ret) \
-    {\
-        if (ret < 0)\
-        {\
-            av_log(nullptr, ret != AVERROR(EAGAIN) ? (ret != AVERROR_EOF ? AV_LOG_ERROR : AV_LOG_INFO) : AV_LOG_DEBUG, "%s %d : %ld\n", __FILE__, __LINE__, ret);\
-            return ret;\
-        }\
-    }
+if(this->status_ == STOP)\
+{\
+    av_log(nullptr, AV_LOG_ERROR, "%s %d : %ld\n", __FILE__, __LINE__, AVERROR(EINVAL));\
+    return AVERROR(EINVAL);\
 }
+
+// 检查ffmpeg返回值
+#define CHECKFFRET(ret) \
+if (ret < 0)\
+{\
+    av_log(nullptr, AVERROR_EOF, "%s %d : %ld\n", __FILE__, __LINE__, ret);\
+    return ret;\
+}
+
+// 递归锁
+#define LOCK() std::lock_guard<decltype(this->mutex_)> _lock(this->mutex_)
 
 #endif//__GUTIL_H__
