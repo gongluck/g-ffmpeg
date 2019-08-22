@@ -28,13 +28,13 @@ extern "C"
 
 // 检查停止状态
 #define CHECKSTOP() \
-if(this->status_ != STOP)\
+if(getstatus() != STOP)\
 {\
     av_log(nullptr, AV_LOG_ERROR, "%s %d : %ld\n", __FILE__, __LINE__, AVERROR(EBUSY));\
     return AVERROR(EINVAL);\
 }
 #define CHECKNOTSTOP() \
-if(this->status_ == STOP)\
+if(getstatus() == STOP)\
 {\
     av_log(nullptr, AV_LOG_ERROR, "%s %d : %ld\n", __FILE__, __LINE__, AVERROR(EINVAL));\
     return AVERROR(EINVAL);\
@@ -48,7 +48,7 @@ if (ret < 0)\
     return ret;\
 }
 
-// 递归锁
-#define LOCK() std::lock_guard<decltype(this->mutex_)> _lock(this->mutex_)
+// 锁
+#define LOCK() std::lock_guard<decltype(getmutex())> _lock(getmutex())
 
 #endif//__GUTIL_H__

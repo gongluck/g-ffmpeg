@@ -18,20 +18,32 @@
 namespace gff
 {
     typedef std::recursive_mutex gmutex;
+    typedef enum STATUS { STOP, WORKING } STATUS;
     class gavbase
     {
     public:
         virtual ~gavbase() = default;
 
+    protected:
         // 获取锁
         inline gmutex& getmutex()
         {
             return mutex_;
-        }      
+        } 
+
+        // 获取状态
+        inline STATUS getstatus() const
+        {
+            return status_;
+        }
+        inline STATUS& getstatus()
+        {
+            return status_;
+        }
 
     private:
         // 状态
-        enum STATUS { STOP, WORKING }status_ = STOP;
+        STATUS status_ = STOP;
 
         // 操作锁
         gmutex mutex_;
