@@ -36,23 +36,6 @@ namespace gff
         // 操作锁
         gmutex mutex_;
     };// gavbase
-
-    // 锁管理
-    class glock
-    {
-    public:
-        glock(gmutex& mutex) : mutex_(mutex)
-        {
-            mutex_.lock();
-        }
-        ~glock()
-        {
-            mutex_.unlock();
-        }
-
-    private:
-        gmutex& mutex_;
-    };// glock
 }// gff
 
 #endif//__GAVBASE_H__
