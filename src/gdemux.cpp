@@ -67,7 +67,7 @@ namespace gff
         return 0;
     }
 
-    int gdemux::get_steam_index(std::vector<int>& videovec, std::vector<int>& audiovec)
+    int gdemux::get_steam_index(std::vector<unsigned int>& videovec, std::vector<unsigned int>& audiovec)
     {
         LOCK();
         if (fmtctx_ == nullptr)
@@ -77,7 +77,7 @@ namespace gff
         videovec.clear();
         audiovec.clear();
 
-        for (int i = 0; i < fmtctx_->nb_streams; ++i)
+        for (unsigned int i = 0; i < fmtctx_->nb_streams; ++i)
         {
             switch (fmtctx_->streams[i]->codecpar->codec_type)
             {

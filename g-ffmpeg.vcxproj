@@ -127,11 +127,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\gdec.cpp" />
     <ClCompile Include="src\gdemux.cpp" />
     <ClCompile Include="test\test.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\gavbase.h" />
+    <ClInclude Include="src\gdec.h" />
     <ClInclude Include="src\gdemux.h" />
     <ClInclude Include="src\gutil.h" />
   </ItemGroup>

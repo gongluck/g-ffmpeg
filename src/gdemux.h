@@ -45,7 +45,7 @@ namespace gff
         int close();
 
         // 获取流索引
-        int get_steam_index(std::vector<int>& videovec, std::vector<int>& audiovec);
+        int get_steam_index(std::vector<unsigned int>& videovec, std::vector<unsigned int>& audiovec);
 
         // 获取流参数
         int get_stream_par(int index, const AVCodecParameters*& par);
