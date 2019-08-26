@@ -44,7 +44,7 @@ if(getstatus() == STOP)\
 #define CHECKFFRET(ret) \
 if (ret < 0)\
 {\
-    av_log(nullptr, AVERROR_EOF, "%s %d : %ld\n", __FILE__, __LINE__, ret);\
+    av_log(nullptr, AV_LOG_ERROR, "%s %d : %ld\n", __FILE__, __LINE__, ret);\
     return ret;\
 }
 

@@ -26,15 +26,29 @@ extern "C"
 }
 #endif
 
+#include <vector>
+
 namespace gff
 {
     class gdemux : public gavbase
     {
     public:
         ~gdemux();
-        int openinput(const char* in);
+
+        // 打开输入
+        int open(const char* in);
+
+        // 读取一个AVPacket
         int readpacket(AVPacket& out);
-        int stop();
+
+        // 关闭输入
+        int close();
+
+        // 获取流索引
+        int get_steam_index(std::vector<int>& videovec, std::vector<int>& audiovec);
+
+        // 获取流参数
+        int get_stream_par(int index, const AVCodecParameters*& par);
 
     private:
         AVFormatContext* fmtctx_ = nullptr;

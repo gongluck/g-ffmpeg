@@ -4,7 +4,7 @@
 int test_demux(const char* in)
 {
     gff::gdemux demux;
-    demux.openinput(in);
+    demux.open(in);
     AVPacket packet;
     av_init_packet(&packet);
     while (demux.readpacket(packet) == 0)
@@ -13,7 +13,7 @@ int test_demux(const char* in)
         // 不再引用指向的缓冲区
         av_packet_unref(&packet);
     }
-    demux.stop();
+    demux.close();
 
     return 0;
 }

@@ -17,16 +17,16 @@ namespace gff
 {
     gdemux::~gdemux()
     {
-        stop();
+        close();
     }
 
-    int gdemux::openinput(const char* in)
+    int gdemux::open(const char* in)
     {
         LOCK();
         CHECKSTOP();
         int ret = 0;
 
-        stop();
+        close();
         fmtctx_ = avformat_alloc_context();
         if (fmtctx_ == nullptr)
         {
@@ -55,7 +55,7 @@ namespace gff
         return av_read_frame(fmtctx_, &out);
     }
 
-    int gdemux::stop()
+    int gdemux::close()
     {
         LOCK();
         //CHECKNOTSTOP();
@@ -66,4 +66,48 @@ namespace gff
 
         return 0;
     }
-}
+
+    int gdemux::get_steam_index(std::vector<int>& videovec, std::vector<int>& audiovec)
+    {
+        LOCK();
+        if (fmtctx_ == nullptr)
+        {
+            CHECKFFRET(AVERROR(EINVAL));
+        }
+        videovec.clear();
+        audiovec.clear();
+
+        for (int i = 0; i < fmtctx_->nb_streams; ++i)
+        {
+            switch (fmtctx_->streams[i]->codecpar->codec_type)
+            {
+            case AVMEDIA_TYPE_VIDEO:
+                videovec.push_back(i);
+                break;
+            case AVMEDIA_TYPE_AUDIO:
+                audiovec.push_back(i);
+                break;
+            default:
+                break;
+            }
+        }
+
+        return 0;
+    }
+
+    int gdemux::get_stream_par(int index, const AVCodecParameters*& par)
+    {
+        LOCK();
+
+        if (index < 0 || static_cast<unsigned int>(index) >= fmtctx_->nb_streams)
+        {
+            CHECKFFRET(AVERROR(EINVAL));
+        }
+        else
+        {
+            par = fmtctx_->streams[index]->codecpar;
+        }
+
+        return 0;
+    }
+}//gff
