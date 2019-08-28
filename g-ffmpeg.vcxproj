@@ -129,12 +129,14 @@
   <ItemGroup>
     <ClCompile Include="src\gdec.cpp" />
     <ClCompile Include="src\gdemux.cpp" />
+    <ClCompile Include="src\genc.cpp" />
     <ClCompile Include="test\test.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\gavbase.h" />
     <ClInclude Include="src\gdec.h" />
     <ClInclude Include="src\gdemux.h" />
+    <ClInclude Include="src\genc.h" />
     <ClInclude Include="src\gutil.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
