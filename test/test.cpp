@@ -1,4 +1,5 @@
 ﻿#include <iostream>
+#include <fstream>
 #include "../src/gdemux.h"
 #include "../src/gdec.h"
 
@@ -49,6 +50,10 @@ int test_dec(const char* in)
                 do
                 {
                     std::cout << "pts : " << frame.pts << " " << packet.stream_index << std::endl;
+                    static std::ofstream f("out.yuv", std::ios::binary | std::ios::trunc);
+                    f.write(reinterpret_cast<const char*>(frame.data[0]), static_cast<int64_t>(frame.linesize[0]) * frame.height);
+                    f.write(reinterpret_cast<const char*>(frame.data[1]), static_cast<int64_t>(frame.linesize[1]) * frame.height / 2);
+                    f.write(reinterpret_cast<const char*>(frame.data[2]), static_cast<int64_t>(frame.linesize[2]) * frame.height / 2);
                 } while (vdec.decode(nullptr, frame) >= 0);
             }
         }
@@ -59,6 +64,15 @@ int test_dec(const char* in)
                 do
                 {
                     std::cout << "pts : " << frame.pts << " " << packet.stream_index << std::endl;
+                    static std::ofstream f("out.pcm", std::ios::binary | std::ios::trunc);
+                    auto size = av_get_bytes_per_sample(static_cast<AVSampleFormat>(frame.format));
+                    for (int i = 0; i < frame.nb_samples; ++i)
+                    {
+                        for (int j = 0; j < frame.channels; ++j)
+                        {
+                            f.write(reinterpret_cast<const char*>(frame.data[j] + size * i), size);
+                        }
+                    }
                 } while (adec.decode(nullptr, frame) >= 0);
             }
         }
