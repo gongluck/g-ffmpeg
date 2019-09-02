@@ -41,6 +41,9 @@ namespace gff
         // 设置音频参数
         int set_audio_param(const char* codecname, int64_t bitrate, int samplerate, uint64_t channellayout, int channels, AVSampleFormat fmt, int& framesize);
 
+        // 获取流参数
+        int get_codectx(const AVCodecContext*& codectx);
+
         // 编码
         int encode_push_frame(const AVFrame* frame);
         int encode_get_packet(AVPacket& packet);

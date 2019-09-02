@@ -3,6 +3,7 @@
 #include "../src/gdemux.h"
 #include "../src/gdec.h"
 #include "../src/genc.h"
+#include "../src/gmux.h"
 
 int test_demux(const char* in)
 {
@@ -185,15 +186,81 @@ int test_enc_audio(const char* in)
     return 0;
 }
 
+int test_mux(const char* out)
+{
+    std::ifstream yuv("out.yuv", std::ios::binary);
+    char* buf = static_cast<char*>(malloc(4608000));
+    if (buf == nullptr)
+    {
+        return 0;
+    }
+
+    gff::genc enc;
+    enc.set_video_param("libx264", 8000000, 640, 480, { 1,15 }, { 15,1 }, 5, 0, AV_PIX_FMT_YUV420P);
+
+    gff::gmux mux;
+    mux.create_output(out);
+    const AVCodecContext* codectx = nullptr;
+    enc.get_codectx(codectx);
+    int vindex = -1;
+    mux.create_stream(codectx, vindex);
+    mux.write_header();
+    AVRational timebase = { 0 };
+    mux.get_timebase(vindex, timebase);
+
+    AVFrame frame = { 0 };
+    frame.width = 640;
+    frame.height = 480;
+    frame.format = AV_PIX_FMT_YUV420P;
+    av_frame_get_buffer(&frame, 1);
+
+    AVPacket packet;
+    av_init_packet(&packet);
+    while (!yuv.eof())
+    {
+        yuv.read(buf, 4608000);
+        av_frame_make_writable(&frame);
+        memcpy(frame.data[0], buf, frame.linesize[0] * frame.height);
+        memcpy(frame.data[1], buf + frame.linesize[0] * frame.height, frame.linesize[1] * frame.height / 2);
+        memcpy(frame.data[2], buf + frame.linesize[0] * frame.height * 5 / 4, frame.linesize[2] * frame.height / 2);
+        static int i = 0;
+        frame.pts = i++;
+        if (enc.encode_push_frame(&frame) >= 0)
+        {
+            while (enc.encode_get_packet(packet) >= 0)
+            {
+                packet.pts = av_rescale_q(packet.pts, { 1, 15 }, timebase);
+                std::cout << "pts : " << packet.pts << std::endl;
+                mux.write_packet(packet);
+            }
+        }
+    }
+
+    enc.encode_push_frame(nullptr);
+    while (enc.encode_get_packet(packet) >= 0)
+    {
+        packet.pts = av_rescale_q(packet.pts, { 1, 15 }, timebase);
+        std::cout << "pts : " << packet.pts << std::endl;
+        mux.write_packet(packet);
+    }
+    mux.cleanup();
+    enc.cleanup();
+    free(buf);
+    buf = nullptr;
+
+    return 0;
+}
+
 int main(int argc, const char* argv[])
 {
     std::cout << "hello g-ffmpeg!" << std::endl;
     //av_log_set_level(AV_LOG_TRACE);
 
-    //test_demux("gx.mkv");
-    //test_dec("gx.mkv");
+    //test_demux("gx.mkv");// gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
+    //test_dec("gx.mkv");// gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
     //test_enc_video("out.yuv");// out.yuv这个文件太大了，没有上传github，可以用解码的例子生成
-    test_enc_audio("out.pcm");// out.pcm这个文件太大了，没有上传github，可以用解码的例子生成
+    //test_enc_audio("out.pcm");// out.pcm这个文件太大了，没有上传github，可以用解码的例子生成
+    test_mux("out.mp4");//out.yuv
 
     std::cin.get();
     return 0;

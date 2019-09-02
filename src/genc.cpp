@@ -91,6 +91,15 @@ namespace gff
         return ret;
     }
 
+    int genc::get_codectx(const AVCodecContext*& codectx)
+    {
+        LOCK();
+
+        codectx = codectx_;
+
+        return 0;
+    }
+
     int genc::encode_push_frame(const AVFrame* frame)
     {
         LOCK();
