@@ -4,6 +4,7 @@
 #include "../src/gdec.h"
 #include "../src/genc.h"
 #include "../src/gmux.h"
+#include "../src/gsws.h"
 
 int test_demux(const char* in)
 {
@@ -251,6 +252,54 @@ int test_mux(const char* out)
     return 0;
 }
 
+int test_sws(const char* in)
+{
+    std::ifstream yuv(in, std::ios::binary);
+    std::ofstream argb("out.argb", std::ios::binary);
+    char* buf = static_cast<char*>(malloc(4608000));
+    if (buf == nullptr)
+    {
+        return 0;
+    }
+
+    AVFrame frame = { 0 };
+    frame.width = 640;
+    frame.height = 480;
+    frame.format = AV_PIX_FMT_YUV420P;
+    av_frame_get_buffer(&frame, 1);
+
+    AVFrame frame2 = { 0 };
+    frame2.width = 1920;
+    frame2.height = 1080;
+    frame2.format = AV_PIX_FMT_RGB24;
+    av_frame_get_buffer(&frame2, 1);
+
+    gff::gsws sws;
+    sws.create_sws(static_cast<AVPixelFormat>(frame.format), frame.width, frame.height,
+        static_cast<AVPixelFormat>(frame2.format), frame2.width, frame2.height);
+
+    AVPacket packet;
+    av_init_packet(&packet);
+    while (!yuv.eof())
+    {
+        yuv.read(buf, 4608000);
+        av_frame_make_writable(&frame);
+        memcpy(frame.data[0], buf, frame.linesize[0] * frame.height);
+        memcpy(frame.data[1], buf + frame.linesize[0] * frame.height, frame.linesize[1] * frame.height / 2);
+        memcpy(frame.data[2], buf + frame.linesize[0] * frame.height * 5 / 4, frame.linesize[2] * frame.height / 2);
+        
+        av_frame_make_writable(&frame2);
+        int h = sws.scale(frame.data, frame.linesize, 0, frame.height, frame2.data, frame2.linesize);
+        argb.write(reinterpret_cast<char*>(frame2.data[0]), frame2.linesize[0]*h);
+    }
+
+    sws.cleanup();
+    free(buf);
+    buf = nullptr;
+
+    return 0;
+}
+
 int main(int argc, const char* argv[])
 {
     std::cout << "hello g-ffmpeg!" << std::endl;
@@ -260,7 +309,8 @@ int main(int argc, const char* argv[])
     //test_dec("gx.mkv");// gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
     //test_enc_video("out.yuv");// out.yuv这个文件太大了，没有上传github，可以用解码的例子生成
     //test_enc_audio("out.pcm");// out.pcm这个文件太大了，没有上传github，可以用解码的例子生成
-    test_mux("out.mp4");//out.yuv
+    //test_mux("out.mp4");//out.yuv
+    test_sws("out.yuv");//out.yuv
 
     std::cin.get();
     return 0;
