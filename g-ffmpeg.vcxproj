@@ -133,6 +133,7 @@
     <ClCompile Include="src\gdemux.cpp" />
     <ClCompile Include="src\genc.cpp" />
     <ClCompile Include="src\gmux.cpp" />
+    <ClCompile Include="src\gswr.cpp" />
     <ClCompile Include="src\gsws.cpp" />
     <ClCompile Include="test\test.cpp" />
   </ItemGroup>
@@ -142,6 +143,7 @@
     <ClInclude Include="src\gdemux.h" />
     <ClInclude Include="src\genc.h" />
     <ClInclude Include="src\gmux.h" />
+    <ClInclude Include="src\gswr.h" />
     <ClInclude Include="src\gsws.h" />
     <ClInclude Include="src\gutil.h" />
   </ItemGroup>

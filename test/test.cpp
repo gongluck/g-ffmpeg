@@ -5,6 +5,7 @@
 #include "../src/genc.h"
 #include "../src/gmux.h"
 #include "../src/gsws.h"
+#include "../src/gswr.h"
 
 int test_demux(const char* in)
 {
@@ -300,6 +301,64 @@ int test_sws(const char* in)
     return 0;
 }
 
+int test_swr(const char* in)
+{
+    std::ifstream pcm("out.pcm", std::ios::binary);
+    std::ofstream pcm2("out2.pcm", std::ios::binary);
+    char* buf = static_cast<char*>(malloc(44100*2*4));
+
+    AVFrame frame = { 0 };
+    frame.nb_samples = 44100;
+    frame.format = AV_SAMPLE_FMT_FLTP;
+    frame.channel_layout = AV_CH_LAYOUT_STEREO;
+    auto size = av_get_bytes_per_sample(static_cast<AVSampleFormat>(frame.format));
+    av_frame_get_buffer(&frame, 0);
+
+    AVFrame frame2 = { 0 };
+    frame2.nb_samples = 48000;
+    frame2.format = AV_SAMPLE_FMT_S32P;
+    frame2.channel_layout = AV_CH_LAYOUT_STEREO;
+    auto size2 = av_get_bytes_per_sample(static_cast<AVSampleFormat>(frame2.format));
+    av_frame_get_buffer(&frame2, 0);
+
+    gff::gswr swr;
+    swr.create_swr(frame.channel_layout, frame.nb_samples, static_cast<AVSampleFormat>(frame.format),
+        frame2.channel_layout, frame2.nb_samples, static_cast<AVSampleFormat>(frame2.format));
+
+    // 获取样本格式对应的每个样本大小(Byte)
+    int persize = av_get_bytes_per_sample(static_cast<AVSampleFormat>(frame2.format));
+    // 获取布局对应的通道数
+    int channel = av_get_channel_layout_nb_channels(frame2.channel_layout);
+
+    AVPacket packet;
+    av_init_packet(&packet);
+    while (!pcm.eof())
+    {
+        auto len = static_cast<std::streamsize>(frame.nb_samples) * size * av_get_channel_layout_nb_channels(frame.channel_layout);
+        pcm.read(buf, static_cast<std::streamsize>(frame.nb_samples) * size * av_get_channel_layout_nb_channels(frame.channel_layout));
+        av_frame_make_writable(&frame);
+
+        for (int i = 0; i < frame.nb_samples; ++i)
+        {
+            memcpy_s(frame.data[0] + size * i, size, buf + size * (2 * i), size);
+            memcpy_s(frame.data[1] + size * i, size, buf + size * (2 * i + 1), size);
+        }
+        
+        auto size = swr.convert(frame2.data, frame2.linesize[0], (const uint8_t * *)(frame.data), frame.nb_samples);
+        // 拷贝音频数据
+        for (int i = 0; i < size; ++i) // 每个样本
+        {
+            for (int j = 0; j < channel; ++j) // 每个通道
+            {
+                pcm2.write(reinterpret_cast<const char*>(frame2.data[j] + persize * i), persize);
+            }
+        }
+    }
+
+    free(buf);
+    return 0;
+}
+
 int main(int argc, const char* argv[])
 {
     std::cout << "hello g-ffmpeg!" << std::endl;
@@ -310,7 +369,8 @@ int main(int argc, const char* argv[])
     //test_enc_video("out.yuv");// out.yuv这个文件太大了，没有上传github，可以用解码的例子生成
     //test_enc_audio("out.pcm");// out.pcm这个文件太大了，没有上传github，可以用解码的例子生成
     //test_mux("out.mp4");//out.yuv
-    test_sws("out.yuv");//out.yuv
+    //test_sws("out.yuv");//out.yuv
+    test_swr("out.pcm");//out.pcm
 
     std::cin.get();
     return 0;
