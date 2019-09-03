@@ -19,7 +19,7 @@ int test_demux(const char* in)
         // 不再引用指向的缓冲区
         av_packet_unref(&packet);
     }
-    demux.close();
+    demux.cleanup();
 
     return 0;
 }
@@ -83,7 +83,7 @@ int test_dec(const char* in)
         // 不再引用指向的缓冲区
         av_packet_unref(&packet);
     }
-    demux.close();
+    demux.cleanup();
 
     return 0;
 }
@@ -364,12 +364,12 @@ int main(int argc, const char* argv[])
     std::cout << "hello g-ffmpeg!" << std::endl;
     //av_log_set_level(AV_LOG_TRACE);
 
-    //test_demux("gx.mkv");// gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
-    //test_dec("gx.mkv");// gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
-    //test_enc_video("out.yuv");// out.yuv这个文件太大了，没有上传github，可以用解码的例子生成
-    //test_enc_audio("out.pcm");// out.pcm这个文件太大了，没有上传github，可以用解码的例子生成
-    //test_mux("out.mp4");//out.yuv
-    //test_sws("out.yuv");//out.yuv
+    test_demux("gx.mkv");// gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
+    test_dec("gx.mkv");// gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
+    test_enc_video("out.yuv");// out.yuv这个文件太大了，没有上传github，可以用解码的例子生成
+    test_enc_audio("out.pcm");// out.pcm这个文件太大了，没有上传github，可以用解码的例子生成
+    test_mux("out.mp4");//out.yuv
+    test_sws("out.yuv");//out.yuv
     test_swr("out.pcm");//out.pcm
 
     std::cin.get();

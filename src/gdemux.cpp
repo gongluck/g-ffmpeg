@@ -17,7 +17,7 @@ namespace gff
 {
     gdemux::~gdemux()
     {
-        close();
+        cleanup();
     }
 
     int gdemux::open(const char* in)
@@ -26,7 +26,7 @@ namespace gff
         CHECKSTOP();
         int ret = 0;
 
-        close();
+        cleanup();
         fmtctx_ = avformat_alloc_context();
         if (fmtctx_ == nullptr)
         {
@@ -55,13 +55,11 @@ namespace gff
         return av_read_frame(fmtctx_, &out);
     }
 
-    int gdemux::close()
+    int gdemux::cleanup()
     {
         LOCK();
-        //CHECKNOTSTOP();
 
         avformat_close_input(&fmtctx_);
-
         getstatus() = STOP;
 
         return 0;
@@ -70,6 +68,8 @@ namespace gff
     int gdemux::get_steam_index(std::vector<unsigned int>& videovec, std::vector<unsigned int>& audiovec)
     {
         LOCK();
+        CHECKNOTSTOP();
+
         if (fmtctx_ == nullptr)
         {
             CHECKFFRET(AVERROR(EINVAL));
@@ -98,6 +98,7 @@ namespace gff
     int gdemux::get_stream_par(int index, const AVCodecParameters*& par)
     {
         LOCK();
+        CHECKNOTSTOP();
 
         if (index < 0 || static_cast<unsigned int>(index) >= fmtctx_->nb_streams)
         {

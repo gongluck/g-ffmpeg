@@ -25,6 +25,7 @@ namespace gff
         LOCK();
 
         avcodec_free_context(&codectx_);
+        getstatus() = STOP;
 
         return 0;
     }
@@ -32,6 +33,7 @@ namespace gff
     int genc::set_video_param(const char* codecname, int64_t bitrate, int width, int height, AVRational timebase, AVRational framerate, int gop, int maxbframes, AVPixelFormat fmt)
     {
         LOCK();
+        CHECKSTOP();
 
         auto codec = avcodec_find_encoder_by_name(codecname);
         if (codec == nullptr)
@@ -56,13 +58,18 @@ namespace gff
         codectx_->pix_fmt = fmt;
         codectx_->codec_type = AVMEDIA_TYPE_VIDEO;
 
-        return avcodec_open2(codectx_, codec, nullptr);
+        int ret = avcodec_open2(codectx_, codec, nullptr);
+        CHECKFFRET(ret);
+
+        getstatus() = WORKING;
+
+        return 0;
     }
 
     int genc::set_audio_param(const char* codecname, int64_t bitrate, int samplerate, uint64_t channellayout, int channels, AVSampleFormat fmt, int& framesize)
     {
         LOCK();
-        int ret = 0;
+        CHECKSTOP();
 
         auto codec = avcodec_find_encoder_by_name(codecname);
         if (codec == nullptr)
@@ -84,16 +91,19 @@ namespace gff
         codectx_->sample_fmt = fmt;
         codectx_->codec_type = AVMEDIA_TYPE_AUDIO;
 
-        ret = avcodec_open2(codectx_, codec, nullptr);
+        int ret = avcodec_open2(codectx_, codec, nullptr);
         CHECKFFRET(ret);
         framesize = codectx_->frame_size;
 
-        return ret;
+        getstatus() = WORKING;
+
+        return 0;
     }
 
     int genc::get_codectx(const AVCodecContext*& codectx)
     {
         LOCK();
+        CHECKNOTSTOP();
 
         codectx = codectx_;
 
@@ -103,6 +113,7 @@ namespace gff
     int genc::encode_push_frame(const AVFrame* frame)
     {
         LOCK();
+        CHECKNOTSTOP();
 
         if (codectx_ == nullptr)
         {
@@ -115,6 +126,7 @@ namespace gff
     int genc::encode_get_packet(AVPacket& packet)
     {
         LOCK();
+        CHECKNOTSTOP();
 
         if (codectx_ == nullptr)
         {

@@ -41,8 +41,8 @@ namespace gff
         // 读取一个AVPacket
         int readpacket(AVPacket& out);
 
-        // 关闭输入
-        int close();
+        // 清理资源
+        int cleanup() override;
 
         // 获取流索引
         int get_steam_index(std::vector<unsigned int>& videovec, std::vector<unsigned int>& audiovec);

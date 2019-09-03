@@ -22,18 +22,23 @@ namespace gff
 
     int gdec::cleanup()
     {
+        LOCK();
+
         avcodec_free_context(&codectx_);
+        getstatus() = STOP;
+
         return 0;
     }
 
     int gdec::copy_param(const AVCodecParameters* par)
     {
         LOCK();
+        CHECKSTOP();
         int ret = 0;
 
         cleanup();
 
-        const auto codec = avcodec_find_decoder(par->codec_id);
+        auto codec = avcodec_find_decoder(par->codec_id);
         if (codec == nullptr)
         {
             CHECKFFRET(AVERROR(EINVAL));
@@ -49,12 +54,15 @@ namespace gff
         ret = avcodec_open2(codectx_, codec, nullptr);
         CHECKFFRET(ret);
 
+        getstatus() = WORKING;
+
         return 0;
     }
 
     int gdec::decode(const AVPacket* packet, AVFrame& frame)
     {
         LOCK();
+        CHECKNOTSTOP();
         int ret = 0;
 
         if (codectx_ == nullptr)

@@ -35,22 +35,29 @@ namespace gff
             fmt_ = nullptr;
         }
 
+        getstatus() = STOP;
+
         return 0;
     }
 
     int gmux::create_output(const char* out)
     {
         LOCK();
-        int ret = 0;
+        CHECKSTOP();
 
         cleanup();
-        return avformat_alloc_output_context2(&fmt_, nullptr, nullptr, out);
+        int ret = avformat_alloc_output_context2(&fmt_, nullptr, nullptr, out);
+        CHECKFFRET(ret);
+
+        getstatus() = WORKING;
+
+        return 0;
     }
 
     int gmux::create_stream(const AVCodecContext* codectx, int& index)
     {
         LOCK();
-        int ret = 0;
+        CHECKNOTSTOP();
 
         if (fmt_ == nullptr || codectx == nullptr)
         {
@@ -69,7 +76,7 @@ namespace gff
             CHECKFFRET(AVERROR(ENOMEM));
         }
 
-        ret = avcodec_parameters_from_context(fmt_->streams[stream->index]->codecpar, codectx);
+        int ret = avcodec_parameters_from_context(fmt_->streams[stream->index]->codecpar, codectx);
         CHECKFFRET(ret);
         index = stream->index;
                 
@@ -79,14 +86,14 @@ namespace gff
     int gmux::write_header()
     {
         LOCK();
-        int ret = 0;
+        CHECKNOTSTOP();
 
         if (fmt_ == nullptr)
         {
             CHECKFFRET(AVERROR(EINVAL));
         }
 
-        ret = avio_open2(&fmt_->pb, fmt_->url, AVIO_FLAG_WRITE, nullptr, nullptr);
+        int ret = avio_open2(&fmt_->pb, fmt_->url, AVIO_FLAG_WRITE, nullptr, nullptr);
         CHECKFFRET(ret);
 
         av_dump_format(fmt_, 0, fmt_->url, 1);
@@ -100,6 +107,7 @@ namespace gff
     int gmux::get_timebase(int index, AVRational& timebase)
     {
         LOCK();
+        CHECKNOTSTOP();
 
         if (fmt_ == nullptr || index >= fmt_->nb_streams || index < 0)
         {
@@ -114,6 +122,7 @@ namespace gff
     int gmux::write_packet(AVPacket& packet)
     {
         LOCK();
+        CHECKNOTSTOP();
 
         if (fmt_ == nullptr)
         {

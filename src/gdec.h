@@ -34,7 +34,7 @@ namespace gff
         ~gdec();
 
         // 销毁资源
-        int cleanup();
+        int cleanup() override;
 
         // 设置解码参数
         int copy_param(const AVCodecParameters* par);

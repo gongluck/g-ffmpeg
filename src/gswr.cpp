@@ -25,6 +25,7 @@ namespace gff
         LOCK();
 
         swr_free(&swrctx_);
+        getstatus() = STOP;
 
         return 0;
     }
@@ -32,6 +33,9 @@ namespace gff
     int gswr::create_swr(int64_t slayout, int srate, enum AVSampleFormat sfmt,
         int64_t dlayout, int drate, enum AVSampleFormat dfmt)
     {
+        LOCK();
+        CHECKSTOP();
+
         swrctx_ = swr_alloc_set_opts(swrctx_, dlayout, dfmt, drate, slayout, sfmt, srate, 0, nullptr);
         if (swrctx_ == nullptr)
         {
@@ -41,6 +45,7 @@ namespace gff
         {
             int ret = swr_init(swrctx_);
             CHECKFFRET(ret);
+            getstatus() = WORKING;
         }
 
         return 0;
@@ -49,6 +54,7 @@ namespace gff
     int gswr::convert(uint8_t** out, int out_count, const uint8_t** in, int in_count)
     {
         LOCK();
+        CHECKNOTSTOP();
 
         if (swrctx_ == nullptr)
         {

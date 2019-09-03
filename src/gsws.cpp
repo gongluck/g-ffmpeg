@@ -26,6 +26,7 @@ namespace gff
 
         sws_freeContext(swsctx_);
         swsctx_ = nullptr;
+        getstatus() = STOP;
 
         return 0;
     }
@@ -33,6 +34,7 @@ namespace gff
     int gsws::create_sws(AVPixelFormat spixfmt, int sw, int sh, AVPixelFormat dpixfmt, int dw, int dh)
     {
         LOCK();
+        CHECKSTOP();
 
         cleanup();
         swsctx_ = sws_getContext(sw, sh, spixfmt, dw, dh, dpixfmt, SWS_FAST_BILINEAR, nullptr, nullptr, nullptr);
@@ -41,12 +43,15 @@ namespace gff
             CHECKFFRET(AVERROR(EINVAL));
         }
 
+        getstatus() = WORKING;
+
         return 0;
     }
 
     int gsws::scale(const uint8_t* const srcSlice[], const int srcStride[], int srcSliceY, int srcSliceH, uint8_t* const dst[], const int dstStride[])
     {
         LOCK();
+        CHECKNOTSTOP();
 
         return sws_scale(swsctx_, srcSlice, srcStride, srcSliceY, srcSliceH, dst, dstStride);
     }

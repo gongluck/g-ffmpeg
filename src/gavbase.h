@@ -41,6 +41,9 @@ namespace gff
             return status_;
         }
 
+        // 清理
+        virtual int cleanup() = 0;
+
     private:
         // 状态
         STATUS status_ = STOP;
