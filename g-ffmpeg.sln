@@ -6,6 +6,9 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "g-ffmpeg", "g-ffmpeg.vcxproj", "{5B903E9A-D782-4074-B90E-6715A5715379}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "record", "record.vcxproj", "{6814A0D1-3BC3-4443-B319-B941AC5EA5B4}"
+	ProjectSection(ProjectDependencies) = postProject
+		{5B903E9A-D782-4074-B90E-6715A5715379} = {5B903E9A-D782-4074-B90E-6715A5715379}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
