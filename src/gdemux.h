@@ -21,6 +21,7 @@ extern "C"
 #endif
 
 #include <libavformat/avformat.h>
+#include <libavdevice/avdevice.h>
 
 #ifdef __cplusplus
 }
@@ -36,7 +37,7 @@ namespace gff
         ~gdemux();
 
         // 打开输入
-        int open(const char* in);
+        int open(const char* in, const char* fmt = nullptr, const std::vector<std::pair<std::string, std::string>>& dicts = {});
 
         // 读取一个AVPacket
         int readpacket(AVPacket& out);
@@ -52,6 +53,8 @@ namespace gff
 
     private:
         AVFormatContext* fmtctx_ = nullptr;
+        AVInputFormat* infmt_ = nullptr;
+        AVDictionary* dict_ = nullptr;
     };
 }//gff
 

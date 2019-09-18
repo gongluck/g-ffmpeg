@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -18,10 +18,29 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="record\record.cpp" />
+    <ClCompile Include="src\gdec.cpp" />
+    <ClCompile Include="src\gdemux.cpp" />
+    <ClCompile Include="src\genc.cpp" />
+    <ClCompile Include="src\gmux.cpp" />
+    <ClCompile Include="src\gswr.cpp" />
+    <ClCompile Include="src\gsws.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\gavbase.h" />
+    <ClInclude Include="src\gdec.h" />
+    <ClInclude Include="src\gdemux.h" />
+    <ClInclude Include="src\genc.h" />
+    <ClInclude Include="src\gmux.h" />
+    <ClInclude Include="src\gswr.h" />
+    <ClInclude Include="src\gsws.h" />
+    <ClInclude Include="src\gutil.h" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
-    <ProjectGuid>{5B903E9A-D782-4074-B90E-6715A5715379}</ProjectGuid>
-    <RootNamespace>gffmpeg</RootNamespace>
+    <ProjectGuid>{6814A0D1-3BC3-4443-B319-B941AC5EA5B4}</ProjectGuid>
+    <RootNamespace>record</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -72,7 +91,6 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>$(SolutionDir)bin\</OutDir>
     <IntDir>$(SolutionDir)tmp\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -131,25 +149,6 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="src\gdec.cpp" />
-    <ClCompile Include="src\gdemux.cpp" />
-    <ClCompile Include="src\genc.cpp" />
-    <ClCompile Include="src\gmux.cpp" />
-    <ClCompile Include="src\gswr.cpp" />
-    <ClCompile Include="src\gsws.cpp" />
-    <ClCompile Include="test\test.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="src\gavbase.h" />
-    <ClInclude Include="src\gdec.h" />
-    <ClInclude Include="src\gdemux.h" />
-    <ClInclude Include="src\genc.h" />
-    <ClInclude Include="src\gmux.h" />
-    <ClInclude Include="src\gswr.h" />
-    <ClInclude Include="src\gsws.h" />
-    <ClInclude Include="src\gutil.h" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

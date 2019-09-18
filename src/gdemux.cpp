@@ -20,20 +20,39 @@ namespace gff
         cleanup();
     }
 
-    int gdemux::open(const char* in)
+    int gdemux::open(const char* in, const char* fmt/* = nullptr*/, const std::vector<std::pair<std::string, std::string>>& dicts/* = {}*/)
     {
         LOCK();
         CHECKSTOP();
         int ret = 0;
 
         cleanup();
+        avdevice_register_all();
+
+        if (fmt != nullptr && 
+            (infmt_ = av_find_input_format(fmt)) == nullptr)
+        {
+            CHECKFFRET(AVERROR(EINVAL));
+        }
+        if (dicts.size() > 0)
+        {
+            for (const auto& p : dicts)
+            {
+                if (p.first.size() > 0 && p.second.size() > 0)
+                {
+                    ret = av_dict_set(&dict_, p.first.c_str(), p.second.c_str(), 0);
+                    CHECKFFRET(ret);
+                }
+            }
+        }
+
         fmtctx_ = avformat_alloc_context();
         if (fmtctx_ == nullptr)
         {
             ret = AVERROR(ENOMEM);
             CHECKFFRET(ret);
         }
-        ret = avformat_open_input(&fmtctx_, in, nullptr, nullptr);
+        ret = avformat_open_input(&fmtctx_, in, infmt_, &dict_);
         CHECKFFRET(ret);
 
         ret = avformat_find_stream_info(fmtctx_, nullptr);
@@ -60,6 +79,8 @@ namespace gff
         LOCK();
 
         avformat_close_input(&fmtctx_);
+        av_dict_free(&dict_);
+        infmt_ = nullptr;
         getstatus() = STOP;
 
         return 0;
