@@ -34,7 +34,7 @@ namespace gff
         ~gmux();
 
         // 销毁资源
-        int cleanup();
+        int cleanup() override;
 
         // 创建输出
         int create_output(const char* out);
@@ -49,7 +49,7 @@ namespace gff
         int get_timebase(int index, AVRational& timebase);
 
         // 写帧
-        int write_packet(AVPacket& packet);
+        int write_packet(std::shared_ptr<AVPacket> packet);
 
     private:
         AVFormatContext* fmt_ = nullptr;

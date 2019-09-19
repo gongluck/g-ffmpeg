@@ -109,7 +109,7 @@ namespace gff
         LOCK();
         CHECKNOTSTOP();
 
-        if (fmt_ == nullptr || index >= fmt_->nb_streams || index < 0)
+        if (fmt_ == nullptr || index < 0 || index >= static_cast<int>(fmt_->nb_streams))
         {
             CHECKFFRET(AVERROR(EINVAL));
         }
@@ -119,7 +119,7 @@ namespace gff
         return 0;
     }
 
-    int gmux::write_packet(AVPacket& packet)
+    int gmux::write_packet(std::shared_ptr<AVPacket> packet)
     {
         LOCK();
         CHECKNOTSTOP();
@@ -129,6 +129,6 @@ namespace gff
             CHECKFFRET(AVERROR(EINVAL));
         }
 
-        return av_interleaved_write_frame(fmt_, &packet);
+        return av_interleaved_write_frame(fmt_, packet.get());
     }
 }//gff

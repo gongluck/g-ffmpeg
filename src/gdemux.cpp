@@ -65,13 +65,16 @@ namespace gff
         return ret;
     }
 
-    int gdemux::readpacket(AVPacket& out)
+    int gdemux::readpacket(std::shared_ptr<AVPacket> packet)
     {
         LOCK();
         CHECKNOTSTOP();
+        int ret = 0;
 
-        // 读数据
-        return av_read_frame(fmtctx_, &out);
+        // 解引用
+        av_packet_unref(packet.get());
+        
+        return av_read_frame(fmtctx_, packet.get());
     }
 
     int gdemux::cleanup()

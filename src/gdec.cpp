@@ -59,7 +59,7 @@ namespace gff
         return 0;
     }
 
-    int gdec::decode(const AVPacket* packet, AVFrame& frame)
+    int gdec::decode(std::shared_ptr<AVPacket> packet, std::shared_ptr<AVFrame> frame)
     {
         LOCK();
         CHECKNOTSTOP();
@@ -73,11 +73,11 @@ namespace gff
         if (packet != nullptr)
         {
             // 发送将要解码的数据
-            ret = avcodec_send_packet(codectx_, packet);
+            ret = avcodec_send_packet(codectx_, packet.get());
             CHECKFFRET(ret);
         }
         
         // 接收解码数据
-        return avcodec_receive_frame(codectx_, &frame);
+        return avcodec_receive_frame(codectx_, frame.get());
     }
 }//gff

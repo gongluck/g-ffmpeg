@@ -1,5 +1,6 @@
 ﻿#include <iostream>
 #include <fstream>
+#include "../src/gutil.h"
 #include "../src/gdemux.h"
 #include "../src/gdec.h"
 #include "../src/genc.h"
@@ -11,13 +12,10 @@ int test_demux(const char* in)
 {
     gff::gdemux demux;
     demux.open(in);
-    AVPacket packet;
-    av_init_packet(&packet);
+    auto packet = gff::GetPacket();
     while (demux.readpacket(packet) == 0)
     {
-        std::cout << "pts : " << packet.pts << " " << packet.stream_index << std::endl;
-        // 不再引用指向的缓冲区
-        av_packet_unref(&packet);
+        std::cout << "pts : " << packet->pts << " " << packet->stream_index << std::endl;
     }
     demux.cleanup();
 
@@ -28,8 +26,9 @@ int test_dec(const char* in)
 {
     gff::gdemux demux;
     demux.open(in);
-    AVPacket packet;
-    av_init_packet(&packet);
+    
+    auto packet = gff::GetPacket();
+    auto frame = gff::GetFrame();
 
     std::vector<unsigned int> videovec, audiovec;
     demux.get_steam_index(videovec, audiovec);
@@ -43,45 +42,41 @@ int test_dec(const char* in)
     gff::gdec adec;
     adec.copy_param(apar);
 
-    AVFrame frame = { 0 };
     while (demux.readpacket(packet) == 0)
     {
-        //std::cout << "pts : " << packet.pts << " " << packet.stream_index << std::endl;
-        if (packet.stream_index == videovec.at(0))
+        if (packet->stream_index == videovec.at(0))
         {
-            if (vdec.decode(&packet, frame) >= 0)
+            if (vdec.decode(packet, frame) >= 0)
             {
                 do
                 {
-                    std::cout << "pts : " << frame.pts << " " << packet.stream_index << std::endl;
+                    std::cout << "pts : " << frame->pts << " " << packet->stream_index << std::endl;
                     static std::ofstream f("out.yuv", std::ios::binary | std::ios::trunc);
-                    f.write(reinterpret_cast<const char*>(frame.data[0]), static_cast<int64_t>(frame.linesize[0]) * frame.height);
-                    f.write(reinterpret_cast<const char*>(frame.data[1]), static_cast<int64_t>(frame.linesize[1]) * frame.height / 2);
-                    f.write(reinterpret_cast<const char*>(frame.data[2]), static_cast<int64_t>(frame.linesize[2]) * frame.height / 2);
+                    f.write(reinterpret_cast<const char*>(frame->data[0]), static_cast<int64_t>(frame->linesize[0]) * frame->height);
+                    f.write(reinterpret_cast<const char*>(frame->data[1]), static_cast<int64_t>(frame->linesize[1]) * frame->height / 2);
+                    f.write(reinterpret_cast<const char*>(frame->data[2]), static_cast<int64_t>(frame->linesize[2]) * frame->height / 2);
                 } while (vdec.decode(nullptr, frame) >= 0);
             }
         }
-        else if (packet.stream_index == audiovec.at(0))
+        else if (packet->stream_index == audiovec.at(0))
         {
-            if (adec.decode(&packet, frame) >= 0)
+            if (adec.decode(packet, frame) >= 0)
             {
                 do
                 {
-                    std::cout << "pts : " << frame.pts << " " << packet.stream_index << std::endl;
+                    std::cout << "pts : " << frame->pts << " " << packet->stream_index << std::endl;
                     static std::ofstream f("out.pcm", std::ios::binary | std::ios::trunc);
-                    auto size = av_get_bytes_per_sample(static_cast<AVSampleFormat>(frame.format));
-                    for (int i = 0; i < frame.nb_samples; ++i)
+                    auto size = av_get_bytes_per_sample(static_cast<AVSampleFormat>(frame->format));
+                    for (int i = 0; i < frame->nb_samples; ++i)
                     {
-                        for (int j = 0; j < frame.channels; ++j)
+                        for (int j = 0; j < frame->channels; ++j)
                         {
-                            f.write(reinterpret_cast<const char*>(frame.data[j] + size * i), size);
+                            f.write(reinterpret_cast<const char*>(frame->data[j] + size * i), size);
                         }
                     }
                 } while (adec.decode(nullptr, frame) >= 0);
             }
         }
-        // 不再引用指向的缓冲区
-        av_packet_unref(&packet);
     }
     demux.cleanup();
 
@@ -100,28 +95,27 @@ int test_enc_video(const char* in)
     gff::genc enc;
     enc.set_video_param("libx264", 400000, 640, 480, { 1,25 }, { 25,1 }, 5, 0, AV_PIX_FMT_YUV420P);
 
-    AVFrame frame = { 0 };
-    frame.width = 640;
-    frame.height = 480;
-    frame.format = AV_PIX_FMT_YUV420P;
-    av_frame_get_buffer(&frame, 1);
+    auto packet = gff::GetPacket();
+    auto frame = gff::GetFrame();
+    frame->width = 640;
+    frame->height = 480;
+    frame->format = AV_PIX_FMT_YUV420P;
+    av_frame_get_buffer(frame.get(), 1);
 
-    AVPacket packet;
-    av_init_packet(&packet);
     while (!yuv.eof())
     {
         yuv.read(buf, 4608000);
-        av_frame_make_writable(&frame);
-        memcpy(frame.data[0], buf, frame.linesize[0] * frame.height);
-        memcpy(frame.data[1], buf + frame.linesize[0] * frame.height, frame.linesize[1] * frame.height / 2);
-        memcpy(frame.data[2], buf + frame.linesize[0] * frame.height * 5 / 4, frame.linesize[2] * frame.height / 2);
+        av_frame_make_writable(frame.get());
+        memcpy(frame->data[0], buf, frame->linesize[0] * frame->height);
+        memcpy(frame->data[1], buf + frame->linesize[0] * frame->height, frame->linesize[1] * frame->height / 2);
+        memcpy(frame->data[2], buf + frame->linesize[0] * frame->height * 5 / 4, frame->linesize[2] * frame->height / 2);
         static int i = 0;
-        frame.pts = i++;
-        if (enc.encode_push_frame(&frame) >= 0)
+        frame->pts = i++;
+        if (enc.encode_push_frame(frame) >= 0)
         {
             while (enc.encode_get_packet(packet) >= 0)
             {
-                std::cout << "pts : " << packet.pts << std::endl;
+                std::cout << "pts : " << packet->pts << std::endl;
             }
         }
     }
@@ -129,7 +123,7 @@ int test_enc_video(const char* in)
     enc.encode_push_frame(nullptr);
     while (enc.encode_get_packet(packet) >= 0)
     {
-        std::cout << "pts : " << packet.pts << std::endl;
+        std::cout << "pts : " << packet->pts << std::endl;
     }
     enc.cleanup();
     free(buf);
@@ -147,33 +141,32 @@ int test_enc_audio(const char* in)
 
     enc.set_audio_param("libmp3lame", 64000, 44100, AV_CH_LAYOUT_STEREO, 2, AV_SAMPLE_FMT_FLTP, framesize);
 
-    AVFrame frame = { 0 };
-    frame.nb_samples = framesize;
-    frame.format = AV_SAMPLE_FMT_FLTP;
-    frame.channel_layout = AV_CH_LAYOUT_STEREO;
-    auto size = av_get_bytes_per_sample(static_cast<AVSampleFormat>(frame.format));
-    av_frame_get_buffer(&frame, 0);
+    auto packet = gff::GetPacket();
+    auto frame = gff::GetFrame();
+    frame->nb_samples = framesize;
+    frame->format = AV_SAMPLE_FMT_FLTP;
+    frame->channel_layout = AV_CH_LAYOUT_STEREO;
+    auto size = av_get_bytes_per_sample(static_cast<AVSampleFormat>(frame->format));
+    av_frame_get_buffer(frame.get(), 0);
 
-    AVPacket packet;
-    av_init_packet(&packet);
     while (!pcm.eof())
     {
-        auto len = static_cast<std::streamsize>(framesize) * size * av_get_channel_layout_nb_channels(frame.channel_layout);
-        pcm.read(buf, static_cast<std::streamsize>(framesize) * size * av_get_channel_layout_nb_channels(frame.channel_layout));
-        av_frame_make_writable(&frame);
+        auto len = static_cast<std::streamsize>(framesize) * size * av_get_channel_layout_nb_channels(frame->channel_layout);
+        pcm.read(buf, static_cast<std::streamsize>(framesize) * size * av_get_channel_layout_nb_channels(frame->channel_layout));
+        av_frame_make_writable(frame.get());
 
-        for (int i = 0; i < frame.nb_samples; ++i)
+        for (int i = 0; i < frame->nb_samples; ++i)
         {
-            memcpy_s(frame.data[0] + size * i, size, buf + size * (2 * i), size);
-            memcpy_s(frame.data[1] + size * i, size, buf + size * (2 * i + 1), size);
+            memcpy_s(frame->data[0] + size * i, size, buf + size * (2 * i), size);
+            memcpy_s(frame->data[1] + size * i, size, buf + size * (2 * i + 1), size);
         }
         static int i = 0;
-        frame.pts = i++;
-        if (enc.encode_push_frame(&frame) >= 0)
+        frame->pts = i++;
+        if (enc.encode_push_frame(frame) >= 0)
         {
             while (enc.encode_get_packet(packet) >= 0)
             {
-                std::cout << "pts : " << packet.pts << std::endl;
+                std::cout << "pts : " << packet->pts << std::endl;
             }
         }
     }
@@ -181,7 +174,7 @@ int test_enc_audio(const char* in)
     enc.encode_push_frame(nullptr);
     while (enc.encode_get_packet(packet) >= 0)
     {
-        std::cout << "pts : " << packet.pts << std::endl;
+        std::cout << "pts : " << packet->pts << std::endl;
     }
     enc.cleanup();
 
@@ -210,29 +203,28 @@ int test_mux(const char* out)
     AVRational timebase = { 0 };
     mux.get_timebase(vindex, timebase);
 
-    AVFrame frame = { 0 };
-    frame.width = 640;
-    frame.height = 480;
-    frame.format = AV_PIX_FMT_YUV420P;
-    av_frame_get_buffer(&frame, 1);
+    auto packet = gff::GetPacket();
+    auto frame = gff::GetFrame();
+    frame->width = 640;
+    frame->height = 480;
+    frame->format = AV_PIX_FMT_YUV420P;
+    av_frame_get_buffer(frame.get(), 1);
 
-    AVPacket packet;
-    av_init_packet(&packet);
     while (!yuv.eof())
     {
         yuv.read(buf, 4608000);
-        av_frame_make_writable(&frame);
-        memcpy(frame.data[0], buf, frame.linesize[0] * frame.height);
-        memcpy(frame.data[1], buf + frame.linesize[0] * frame.height, frame.linesize[1] * frame.height / 2);
-        memcpy(frame.data[2], buf + frame.linesize[0] * frame.height * 5 / 4, frame.linesize[2] * frame.height / 2);
+        av_frame_make_writable(frame.get());
+        memcpy(frame->data[0], buf, frame->linesize[0] * frame->height);
+        memcpy(frame->data[1], buf + frame->linesize[0] * frame->height, frame->linesize[1] * frame->height / 2);
+        memcpy(frame->data[2], buf + frame->linesize[0] * frame->height * 5 / 4, frame->linesize[2] * frame->height / 2);
         static int i = 0;
-        frame.pts = i++;
-        if (enc.encode_push_frame(&frame) >= 0)
+        frame->pts = i++;
+        if (enc.encode_push_frame(frame) >= 0)
         {
             while (enc.encode_get_packet(packet) >= 0)
             {
-                packet.pts = av_rescale_q(packet.pts, { 1, 15 }, timebase);
-                std::cout << "pts : " << packet.pts << std::endl;
+                packet->pts = av_rescale_q(packet->pts, { 1, 15 }, timebase);
+                std::cout << "pts : " << packet->pts << std::endl;
                 mux.write_packet(packet);
             }
         }
@@ -241,8 +233,8 @@ int test_mux(const char* out)
     enc.encode_push_frame(nullptr);
     while (enc.encode_get_packet(packet) >= 0)
     {
-        packet.pts = av_rescale_q(packet.pts, { 1, 15 }, timebase);
-        std::cout << "pts : " << packet.pts << std::endl;
+        packet->pts = av_rescale_q(packet->pts, { 1, 15 }, timebase);
+        std::cout << "pts : " << packet->pts << std::endl;
         mux.write_packet(packet);
     }
     mux.cleanup();
@@ -263,35 +255,34 @@ int test_sws(const char* in)
         return 0;
     }
 
-    AVFrame frame = { 0 };
-    frame.width = 640;
-    frame.height = 480;
-    frame.format = AV_PIX_FMT_YUV420P;
-    av_frame_get_buffer(&frame, 1);
+    auto packet = gff::GetPacket();
+    auto frame = gff::GetFrame();
+    auto frame2 = gff::GetFrame();
+    frame->width = 640;
+    frame->height = 480;
+    frame->format = AV_PIX_FMT_YUV420P;
+    av_frame_get_buffer(frame.get(), 1);
 
-    AVFrame frame2 = { 0 };
-    frame2.width = 1920;
-    frame2.height = 1080;
-    frame2.format = AV_PIX_FMT_RGB24;
-    av_frame_get_buffer(&frame2, 1);
+    frame2->width = 1920;
+    frame2->height = 1080;
+    frame2->format = AV_PIX_FMT_RGB24;
+    av_frame_get_buffer(frame2.get(), 1);
 
     gff::gsws sws;
-    sws.create_sws(static_cast<AVPixelFormat>(frame.format), frame.width, frame.height,
-        static_cast<AVPixelFormat>(frame2.format), frame2.width, frame2.height);
+    sws.create_sws(static_cast<AVPixelFormat>(frame->format), frame->width, frame->height,
+        static_cast<AVPixelFormat>(frame2->format), frame2->width, frame2->height);
 
-    AVPacket packet;
-    av_init_packet(&packet);
     while (!yuv.eof())
     {
         yuv.read(buf, 4608000);
-        av_frame_make_writable(&frame);
-        memcpy(frame.data[0], buf, frame.linesize[0] * frame.height);
-        memcpy(frame.data[1], buf + frame.linesize[0] * frame.height, frame.linesize[1] * frame.height / 2);
-        memcpy(frame.data[2], buf + frame.linesize[0] * frame.height * 5 / 4, frame.linesize[2] * frame.height / 2);
+        av_frame_make_writable(frame.get());
+        memcpy(frame->data[0], buf, frame->linesize[0] * frame->height);
+        memcpy(frame->data[1], buf + frame->linesize[0] * frame->height, frame->linesize[1] * frame->height / 2);
+        memcpy(frame->data[2], buf + frame->linesize[0] * frame->height * 5 / 4, frame->linesize[2] * frame->height / 2);
         
-        av_frame_make_writable(&frame2);
-        int h = sws.scale(frame.data, frame.linesize, 0, frame.height, frame2.data, frame2.linesize);
-        argb.write(reinterpret_cast<char*>(frame2.data[0]), frame2.linesize[0]*h);
+        av_frame_make_writable(frame2.get());
+        int h = sws.scale(frame->data, frame->linesize, 0, frame->height, frame2->data, frame2->linesize);
+        argb.write(reinterpret_cast<char*>(frame2->data[0]), static_cast<std::streamsize>(frame2->linesize[0])*h);
     }
 
     sws.cleanup();
@@ -307,50 +298,50 @@ int test_swr(const char* in)
     std::ofstream pcm2("out2.pcm", std::ios::binary);
     char* buf = static_cast<char*>(malloc(44100*2*4));
 
-    AVFrame frame = { 0 };
-    frame.nb_samples = 44100;
-    frame.format = AV_SAMPLE_FMT_FLTP;
-    frame.channel_layout = AV_CH_LAYOUT_STEREO;
-    auto size = av_get_bytes_per_sample(static_cast<AVSampleFormat>(frame.format));
-    av_frame_get_buffer(&frame, 0);
+    auto packet = gff::GetPacket();
+    auto frame = gff::GetFrame();
+    auto frame2 = gff::GetFrame();
 
-    AVFrame frame2 = { 0 };
-    frame2.nb_samples = 48000;
-    frame2.format = AV_SAMPLE_FMT_S32P;
-    frame2.channel_layout = AV_CH_LAYOUT_STEREO;
-    auto size2 = av_get_bytes_per_sample(static_cast<AVSampleFormat>(frame2.format));
-    av_frame_get_buffer(&frame2, 0);
+    frame->nb_samples = 44100;
+    frame->format = AV_SAMPLE_FMT_FLTP;
+    frame->channel_layout = AV_CH_LAYOUT_STEREO;
+    auto size = av_get_bytes_per_sample(static_cast<AVSampleFormat>(frame->format));
+    av_frame_get_buffer(frame.get(), 0);
+
+    frame2->nb_samples = 48000;
+    frame2->format = AV_SAMPLE_FMT_S32P;
+    frame2->channel_layout = AV_CH_LAYOUT_STEREO;
+    auto size2 = av_get_bytes_per_sample(static_cast<AVSampleFormat>(frame2->format));
+    av_frame_get_buffer(frame2.get(), 0);
 
     gff::gswr swr;
-    swr.create_swr(frame.channel_layout, frame.nb_samples, static_cast<AVSampleFormat>(frame.format),
-        frame2.channel_layout, frame2.nb_samples, static_cast<AVSampleFormat>(frame2.format));
+    swr.create_swr(frame->channel_layout, frame->nb_samples, static_cast<AVSampleFormat>(frame->format),
+        frame2->channel_layout, frame2->nb_samples, static_cast<AVSampleFormat>(frame2->format));
 
     // 获取样本格式对应的每个样本大小(Byte)
-    int persize = av_get_bytes_per_sample(static_cast<AVSampleFormat>(frame2.format));
+    int persize = av_get_bytes_per_sample(static_cast<AVSampleFormat>(frame2->format));
     // 获取布局对应的通道数
-    int channel = av_get_channel_layout_nb_channels(frame2.channel_layout);
+    int channel = av_get_channel_layout_nb_channels(frame2->channel_layout);
 
-    AVPacket packet;
-    av_init_packet(&packet);
     while (!pcm.eof())
     {
-        auto len = static_cast<std::streamsize>(frame.nb_samples) * size * av_get_channel_layout_nb_channels(frame.channel_layout);
-        pcm.read(buf, static_cast<std::streamsize>(frame.nb_samples) * size * av_get_channel_layout_nb_channels(frame.channel_layout));
-        av_frame_make_writable(&frame);
+        auto len = static_cast<std::streamsize>(frame->nb_samples) * size * av_get_channel_layout_nb_channels(frame->channel_layout);
+        pcm.read(buf, static_cast<std::streamsize>(frame->nb_samples) * size * av_get_channel_layout_nb_channels(frame->channel_layout));
+        av_frame_make_writable(frame.get());
 
-        for (int i = 0; i < frame.nb_samples; ++i)
+        for (int i = 0; i < frame->nb_samples; ++i)
         {
-            memcpy_s(frame.data[0] + size * i, size, buf + size * (2 * i), size);
-            memcpy_s(frame.data[1] + size * i, size, buf + size * (2 * i + 1), size);
+            memcpy_s(frame->data[0] + size * i, size, buf + size * (2 * i), size);
+            memcpy_s(frame->data[1] + size * i, size, buf + size * (2 * i + 1), size);
         }
         
-        auto size = swr.convert(frame2.data, frame2.linesize[0], (const uint8_t * *)(frame.data), frame.nb_samples);
+        auto size = swr.convert(frame2->data, frame2->linesize[0], (const uint8_t * *)(frame->data), frame->nb_samples);
         // 拷贝音频数据
         for (int i = 0; i < size; ++i) // 每个样本
         {
             for (int j = 0; j < channel; ++j) // 每个通道
             {
-                pcm2.write(reinterpret_cast<const char*>(frame2.data[j] + persize * i), persize);
+                pcm2.write(reinterpret_cast<const char*>(frame2->data[j] + persize * i), persize);
             }
         }
     }

@@ -26,6 +26,7 @@
     <ClCompile Include="src\gmux.cpp" />
     <ClCompile Include="src\gswr.cpp" />
     <ClCompile Include="src\gsws.cpp" />
+    <ClCompile Include="src\gutil.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\gavbase.h" />

@@ -34,7 +34,7 @@ namespace gff
         ~gsws();
 
         // 销毁资源
-        int cleanup();
+        int cleanup() override;
 
         // 设置参数
         int create_sws(AVPixelFormat spixfmt, int sw, int sh, AVPixelFormat dpixfmt, int dw, int dh);

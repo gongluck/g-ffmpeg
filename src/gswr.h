@@ -34,7 +34,7 @@ namespace gff
         ~gswr();
 
         // 销毁资源
-        int cleanup();
+        int cleanup() override;
 
         // 设置参数
         int create_swr(int64_t slayout, int srate, enum AVSampleFormat sfmt,

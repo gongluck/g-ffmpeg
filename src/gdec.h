@@ -40,7 +40,7 @@ namespace gff
         int copy_param(const AVCodecParameters* par);
 
         // 解码
-        int decode(const AVPacket* packet, AVFrame& frame);
+        int decode(std::shared_ptr<AVPacket> packet, std::shared_ptr<AVFrame> frame);
 
     private:
         AVCodecContext* codectx_ = nullptr;

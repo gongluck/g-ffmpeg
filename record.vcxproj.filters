@@ -39,6 +39,9 @@
     <ClCompile Include="src\gsws.cpp">
       <Filter>g-ffmpeg</Filter>
     </ClCompile>
+    <ClCompile Include="src\gutil.cpp">
+      <Filter>g-ffmpeg</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\gavbase.h">

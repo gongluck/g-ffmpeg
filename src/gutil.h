@@ -21,6 +21,7 @@ extern "C"
 #endif
 
 #include <libavutil/opt.h>
+#include <libavcodec/avcodec.h>
 
 #ifdef __cplusplus
 }
@@ -50,5 +51,14 @@ if (ret < 0)\
 
 // 锁
 #define LOCK() std::lock_guard<decltype(getmutex())> _lock(getmutex())
+
+#include <iostream>
+namespace gff
+{
+    // 获取AVPacet
+    std::shared_ptr<AVPacket> GetPacket();
+    // 获取AVFrame
+    std::shared_ptr<AVFrame> GetFrame();
+}//gff
 
 #endif//__GUTIL_H__

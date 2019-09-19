@@ -11,6 +11,7 @@
 *******************************************************************/
 
 #include <iostream>
+#include <queue>
 #include "../src/gutil.h"
 #include "../src/gdemux.h"
 
@@ -21,12 +22,38 @@ int main(int argc, char* argv[])
     gff::gdemux demux_desktop;
     ret = demux_desktop.open("desktop", "gdigrab", { {"framerate", "30"} });
     CHECKFFRET(ret);
-    AVPacket desktop_pkt;
-    av_init_packet(&desktop_pkt);
-    while (demux_desktop.readpacket(desktop_pkt) == 0)
+
+    std::vector<unsigned int> videovec, audiovec;
+    ret = demux_desktop.get_steam_index(videovec, audiovec);
+    CHECKFFRET(ret);
+    int vindex = videovec.size() > 0 ? videovec.at(0) : -1;
+
+    const AVCodecParameters* vpar = nullptr;
+    ret = demux_desktop.get_stream_par(vindex, vpar);
+    CHECKFFRET(ret);
+
+    std::queue<std::shared_ptr<AVPacket>> packet_queue;
+    decltype(gff::GetPacket()) packet = nullptr;
+    do
     {
-        std::cout << "got a packt " << std::endl;
-    }
+        if (packet != nullptr)
+        {
+            if (packet_queue.size() > 100)
+            {
+                decltype(packet_queue) empty;
+                packet_queue.swap(empty);
+            }
+            packet_queue.push(packet);
+            std::cout << "got a packet, index " << packet->stream_index << " pts " << packet->pts << std::endl;
+        }
+
+        packet = gff::GetPacket();
+        if (packet == nullptr)
+        {
+            CHECKFFRET(AVERROR(ENOMEM));
+        }
+
+    } while (demux_desktop.readpacket(packet) == 0);
 
     return 0;
 }

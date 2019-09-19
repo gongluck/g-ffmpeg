@@ -40,7 +40,7 @@ namespace gff
         int open(const char* in, const char* fmt = nullptr, const std::vector<std::pair<std::string, std::string>>& dicts = {});
 
         // 读取一个AVPacket
-        int readpacket(AVPacket& out);
+        int readpacket(std::shared_ptr<AVPacket> packet);
 
         // 清理资源
         int cleanup() override;

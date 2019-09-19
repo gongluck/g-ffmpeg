@@ -34,7 +34,7 @@ namespace gff
         ~genc();
 
         // 销毁资源
-        int cleanup();
+        int cleanup() override;
 
         // 设置视频参数
         int set_video_param(const char* codecname, int64_t bitrate, int width, int height, AVRational timebase, AVRational framerate, int gop, int maxbframes, AVPixelFormat fmt);
@@ -45,8 +45,8 @@ namespace gff
         int get_codectx(const AVCodecContext*& codectx);
 
         // 编码
-        int encode_push_frame(const AVFrame* frame);
-        int encode_get_packet(AVPacket& packet);
+        int encode_push_frame(std::shared_ptr<AVFrame> frame);
+        int encode_get_packet(std::shared_ptr<AVPacket> packet);
 
     private:
         AVCodecContext* codectx_ = nullptr;

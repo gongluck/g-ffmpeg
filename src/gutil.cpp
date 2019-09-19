@@ -1,0 +1,47 @@
+﻿/*******************************************************************
+*  Copyright(c) 2019
+*  All rights reserved.
+*
+*  文件名称:    gutil.cpp
+*  简要描述:    通用工具
+*
+*  作者:  gongluck
+*  说明:
+*
+*******************************************************************/
+
+#include "gutil.h"
+
+namespace gff
+{
+    AVPacket* CreatePacket()
+    {
+        auto p = av_packet_alloc();
+        av_init_packet(p);
+        return p;
+    }
+    void FreePacket(AVPacket* p)
+    {
+        av_packet_unref(p);
+        av_packet_free(&p);
+    }
+    std::shared_ptr<AVPacket> GetPacket()
+    {
+        return std::shared_ptr<AVPacket>(CreatePacket(), FreePacket);
+    }
+
+    AVFrame* CreateFrame()
+    {
+        auto p = av_frame_alloc();
+        return p;
+    }
+    void FreeFrame(AVFrame* p)
+    {
+        av_frame_unref(p);
+        av_frame_free(&p);
+    }
+    std::shared_ptr<AVFrame> GetFrame()
+    {
+        return std::shared_ptr<AVFrame>(CreateFrame(), FreeFrame);
+    }
+}//gff

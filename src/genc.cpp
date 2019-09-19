@@ -110,7 +110,7 @@ namespace gff
         return 0;
     }
 
-    int genc::encode_push_frame(const AVFrame* frame)
+    int genc::encode_push_frame(std::shared_ptr<AVFrame> frame)
     {
         LOCK();
         CHECKNOTSTOP();
@@ -120,10 +120,10 @@ namespace gff
             CHECKFFRET(AVERROR(EINVAL));
         }
 
-        return avcodec_send_frame(codectx_, frame);
+        return avcodec_send_frame(codectx_, frame.get());
     }
 
-    int genc::encode_get_packet(AVPacket& packet)
+    int genc::encode_get_packet(std::shared_ptr<AVPacket> packet)
     {
         LOCK();
         CHECKNOTSTOP();
@@ -133,6 +133,6 @@ namespace gff
             CHECKFFRET(AVERROR(EINVAL));
         }
 
-        return avcodec_receive_packet(codectx_, &packet);
+        return avcodec_receive_packet(codectx_, packet.get());
     }
 }//gff
