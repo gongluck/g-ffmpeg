@@ -59,6 +59,9 @@ namespace gff
     std::shared_ptr<AVPacket> GetPacket();
     // 获取AVFrame
     std::shared_ptr<AVFrame> GetFrame();
+
+    // 分配AVFrame数据空间
+    int GetFrameBuf(std::shared_ptr<AVFrame> frame, int w, int h, AVPixelFormat fmt, int align);
 }//gff
 
 #endif//__GUTIL_H__

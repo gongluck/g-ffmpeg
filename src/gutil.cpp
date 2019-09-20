@@ -44,4 +44,18 @@ namespace gff
     {
         return std::shared_ptr<AVFrame>(CreateFrame(), FreeFrame);
     }
+
+    int GetFrameBuf(std::shared_ptr<AVFrame> frame, int w, int h, AVPixelFormat fmt, int align)
+    {
+        if (frame == nullptr)
+        {
+            CHECKFFRET(AVERROR(EINVAL));
+        }
+
+        frame->width = w;
+        frame->height = h;
+        frame->format = fmt;
+        
+        return av_frame_get_buffer(frame.get(), align);
+    }
 }//gff

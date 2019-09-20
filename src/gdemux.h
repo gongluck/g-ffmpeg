@@ -49,7 +49,7 @@ namespace gff
         int get_steam_index(std::vector<unsigned int>& videovec, std::vector<unsigned int>& audiovec);
 
         // 获取流参数
-        int get_stream_par(int index, const AVCodecParameters*& par);
+        int get_stream_par(int index, const AVCodecParameters*& par, AVRational& timebase);
 
     private:
         AVFormatContext* fmtctx_ = nullptr;

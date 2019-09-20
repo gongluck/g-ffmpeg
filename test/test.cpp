@@ -16,6 +16,7 @@ int test_demux(const char* in)
     while (demux.readpacket(packet) == 0)
     {
         std::cout << "pts : " << packet->pts << " " << packet->stream_index << std::endl;
+        packet = gff::GetPacket();
     }
     demux.cleanup();
 
@@ -33,9 +34,10 @@ int test_dec(const char* in)
     std::vector<unsigned int> videovec, audiovec;
     demux.get_steam_index(videovec, audiovec);
     const AVCodecParameters* vpar = nullptr;
+    AVRational vtimebase, atimebase;
     const AVCodecParameters* apar = nullptr;
-    demux.get_stream_par(videovec.at(0), vpar);
-    demux.get_stream_par(audiovec.at(0), apar);
+    demux.get_stream_par(videovec.at(0), vpar, vtimebase);
+    demux.get_stream_par(audiovec.at(0), apar, atimebase);
 
     gff::gdec vdec;
     vdec.copy_param(vpar);
@@ -77,6 +79,8 @@ int test_dec(const char* in)
                 } while (adec.decode(nullptr, frame) >= 0);
             }
         }
+        packet = gff::GetPacket();
+        frame = gff::GetFrame();
     }
     demux.cleanup();
 
@@ -95,15 +99,12 @@ int test_enc_video(const char* in)
     gff::genc enc;
     enc.set_video_param("libx264", 400000, 640, 480, { 1,25 }, { 25,1 }, 5, 0, AV_PIX_FMT_YUV420P);
 
-    auto packet = gff::GetPacket();
-    auto frame = gff::GetFrame();
-    frame->width = 640;
-    frame->height = 480;
-    frame->format = AV_PIX_FMT_YUV420P;
-    av_frame_get_buffer(frame.get(), 1);
-
     while (!yuv.eof())
     {
+        auto packet = gff::GetPacket();
+        auto frame = gff::GetFrame();
+        gff::GetFrameBuf(frame, 640, 480, AV_PIX_FMT_YUV420P, 1);
+
         yuv.read(buf, 4608000);
         av_frame_make_writable(frame.get());
         memcpy(frame->data[0], buf, frame->linesize[0] * frame->height);
@@ -111,9 +112,9 @@ int test_enc_video(const char* in)
         memcpy(frame->data[2], buf + frame->linesize[0] * frame->height * 5 / 4, frame->linesize[2] * frame->height / 2);
         static int i = 0;
         frame->pts = i++;
-        if (enc.encode_push_frame(frame) >= 0)
+        if (enc.encode_push_frame(frame) == 0)
         {
-            while (enc.encode_get_packet(packet) >= 0)
+            while (enc.encode_get_packet(packet) == 0)
             {
                 std::cout << "pts : " << packet->pts << std::endl;
             }
@@ -121,7 +122,8 @@ int test_enc_video(const char* in)
     }
 
     enc.encode_push_frame(nullptr);
-    while (enc.encode_get_packet(packet) >= 0)
+    auto packet = gff::GetPacket();
+    while (enc.encode_get_packet(packet) == 0)
     {
         std::cout << "pts : " << packet->pts << std::endl;
     }
@@ -203,15 +205,12 @@ int test_mux(const char* out)
     AVRational timebase = { 0 };
     mux.get_timebase(vindex, timebase);
 
-    auto packet = gff::GetPacket();
-    auto frame = gff::GetFrame();
-    frame->width = 640;
-    frame->height = 480;
-    frame->format = AV_PIX_FMT_YUV420P;
-    av_frame_get_buffer(frame.get(), 1);
-
     while (!yuv.eof())
     {
+        auto packet = gff::GetPacket();
+        auto frame = gff::GetFrame();
+        gff::GetFrameBuf(frame, 640, 480, AV_PIX_FMT_YUV420P, 1);
+
         yuv.read(buf, 4608000);
         av_frame_make_writable(frame.get());
         memcpy(frame->data[0], buf, frame->linesize[0] * frame->height);
@@ -219,9 +218,9 @@ int test_mux(const char* out)
         memcpy(frame->data[2], buf + frame->linesize[0] * frame->height * 5 / 4, frame->linesize[2] * frame->height / 2);
         static int i = 0;
         frame->pts = i++;
-        if (enc.encode_push_frame(frame) >= 0)
+        if (enc.encode_push_frame(frame) == 0)
         {
-            while (enc.encode_get_packet(packet) >= 0)
+            while (enc.encode_get_packet(packet) == 0)
             {
                 packet->pts = av_rescale_q(packet->pts, { 1, 15 }, timebase);
                 std::cout << "pts : " << packet->pts << std::endl;
@@ -231,7 +230,8 @@ int test_mux(const char* out)
     }
 
     enc.encode_push_frame(nullptr);
-    while (enc.encode_get_packet(packet) >= 0)
+    auto packet = gff::GetPacket();
+    while (enc.encode_get_packet(packet) == 0)
     {
         packet->pts = av_rescale_q(packet->pts, { 1, 15 }, timebase);
         std::cout << "pts : " << packet->pts << std::endl;
@@ -255,18 +255,10 @@ int test_sws(const char* in)
         return 0;
     }
 
-    auto packet = gff::GetPacket();
     auto frame = gff::GetFrame();
     auto frame2 = gff::GetFrame();
-    frame->width = 640;
-    frame->height = 480;
-    frame->format = AV_PIX_FMT_YUV420P;
-    av_frame_get_buffer(frame.get(), 1);
-
-    frame2->width = 1920;
-    frame2->height = 1080;
-    frame2->format = AV_PIX_FMT_RGB24;
-    av_frame_get_buffer(frame2.get(), 1);
+    gff::GetFrameBuf(frame, 640, 480, AV_PIX_FMT_YUV420P, 1);
+    gff::GetFrameBuf(frame2, 640, 480, AV_PIX_FMT_YUV420P, 1);
 
     gff::gsws sws;
     sws.create_sws(static_cast<AVPixelFormat>(frame->format), frame->width, frame->height,
@@ -275,14 +267,17 @@ int test_sws(const char* in)
     while (!yuv.eof())
     {
         yuv.read(buf, 4608000);
-        av_frame_make_writable(frame.get());
         memcpy(frame->data[0], buf, frame->linesize[0] * frame->height);
         memcpy(frame->data[1], buf + frame->linesize[0] * frame->height, frame->linesize[1] * frame->height / 2);
         memcpy(frame->data[2], buf + frame->linesize[0] * frame->height * 5 / 4, frame->linesize[2] * frame->height / 2);
-        
-        av_frame_make_writable(frame2.get());
+
         int h = sws.scale(frame->data, frame->linesize, 0, frame->height, frame2->data, frame2->linesize);
         argb.write(reinterpret_cast<char*>(frame2->data[0]), static_cast<std::streamsize>(frame2->linesize[0])*h);
+
+        frame = gff::GetFrame();
+        frame2 = gff::GetFrame();
+        gff::GetFrameBuf(frame, 640, 480, AV_PIX_FMT_YUV420P, 1);
+        gff::GetFrameBuf(frame2, 640, 480, AV_PIX_FMT_YUV420P, 1);
     }
 
     sws.cleanup();

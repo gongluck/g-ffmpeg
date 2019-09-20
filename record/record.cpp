@@ -29,7 +29,8 @@ int main(int argc, char* argv[])
     int vindex = videovec.size() > 0 ? videovec.at(0) : -1;
 
     const AVCodecParameters* vpar = nullptr;
-    ret = demux_desktop.get_stream_par(vindex, vpar);
+    AVRational vtimebase;
+    ret = demux_desktop.get_stream_par(vindex, vpar, vtimebase);
     CHECKFFRET(ret);
 
     std::queue<std::shared_ptr<AVPacket>> packet_queue;

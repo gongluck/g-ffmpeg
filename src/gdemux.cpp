@@ -119,7 +119,7 @@ namespace gff
         return 0;
     }
 
-    int gdemux::get_stream_par(int index, const AVCodecParameters*& par)
+    int gdemux::get_stream_par(int index, const AVCodecParameters*& par, AVRational& timebase)
     {
         LOCK();
         CHECKNOTSTOP();
@@ -131,6 +131,7 @@ namespace gff
         else
         {
             par = fmtctx_->streams[index]->codecpar;
+            timebase = fmtctx_->streams[index]->time_base;
         }
 
         return 0;
