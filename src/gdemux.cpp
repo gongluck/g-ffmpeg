@@ -49,8 +49,7 @@ namespace gff
         fmtctx_ = avformat_alloc_context();
         if (fmtctx_ == nullptr)
         {
-            ret = AVERROR(ENOMEM);
-            CHECKFFRET(ret);
+            CHECKFFRET(AVERROR(ENOMEM));
         }
         ret = avformat_open_input(&fmtctx_, in, infmt_, &dict_);
         CHECKFFRET(ret);
@@ -58,7 +57,7 @@ namespace gff
         ret = avformat_find_stream_info(fmtctx_, nullptr);
         CHECKFFRET(ret);
 
-        av_dump_format(fmtctx_, 0, in, 0);
+        av_dump_format(fmtctx_, -1, in, 0);
 
         getstatus() = WORKING;
 
@@ -69,7 +68,6 @@ namespace gff
     {
         LOCK();
         CHECKNOTSTOP();
-        int ret = 0;
 
         // 解引用
         av_packet_unref(packet.get());

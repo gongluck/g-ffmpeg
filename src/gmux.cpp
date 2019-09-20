@@ -30,7 +30,7 @@ namespace gff
             CHECKFFRET(ret);
             ret = avio_closep(&fmt_->pb);
             CHECKFFRET(ret);
-            av_dump_format(fmt_, 0, fmt_->url, 1);
+            av_dump_format(fmt_, -1, fmt_->url, 1);
             avformat_free_context(fmt_);
             fmt_ = nullptr;
         }
@@ -59,13 +59,9 @@ namespace gff
         LOCK();
         CHECKNOTSTOP();
 
-        if (fmt_ == nullptr || codectx == nullptr)
-        {
-            CHECKFFRET(AVERROR(EINVAL));
-        }
-
-        auto codec = avcodec_find_encoder(codectx->codec_id);
-        if (codec == nullptr)
+        AVCodec* codec = nullptr;
+        if (fmt_ == nullptr || codectx == nullptr || 
+            (codec = avcodec_find_encoder(codectx->codec_id)) == nullptr)
         {
             CHECKFFRET(AVERROR(EINVAL));
         }
@@ -96,7 +92,7 @@ namespace gff
         int ret = avio_open2(&fmt_->pb, fmt_->url, AVIO_FLAG_WRITE, nullptr, nullptr);
         CHECKFFRET(ret);
 
-        av_dump_format(fmt_, 0, fmt_->url, 1);
+        av_dump_format(fmt_, -1, fmt_->url, 1);
 
         ret = avformat_write_header(fmt_, nullptr);
         CHECKFFRET(ret);

@@ -185,15 +185,18 @@ int test_enc_audio(const char* in)
 
 int test_mux(const char* out)
 {
-    std::ifstream yuv("out.yuv", std::ios::binary);
-    char* buf = static_cast<char*>(malloc(4608000));
+    std::ifstream nv12("out.nv12", std::ios::binary);
+    const int width = 640;
+    const int height = 480;
+    const int size = width * height * 3 / 2;
+    char* buf = static_cast<char*>(malloc(size));
     if (buf == nullptr)
     {
         return 0;
     }
 
     gff::genc enc;
-    enc.set_video_param("libx264", 8000000, 640, 480, { 1,15 }, { 15,1 }, 5, 0, AV_PIX_FMT_YUV420P);
+    enc.set_video_param("h264_qsv", 2000000, width, height, { 1,23 }, { 23,1 }, 5, 0, AV_PIX_FMT_NV12);
 
     gff::gmux mux;
     mux.create_output(out);
@@ -205,26 +208,29 @@ int test_mux(const char* out)
     AVRational timebase = { 0 };
     mux.get_timebase(vindex, timebase);
 
-    while (!yuv.eof())
+    int i = 0;
+    while (!nv12.eof())
     {
         auto packet = gff::GetPacket();
         auto frame = gff::GetFrame();
-        gff::GetFrameBuf(frame, 640, 480, AV_PIX_FMT_YUV420P, 1);
+        gff::GetFrameBuf(frame, width, height, AV_PIX_FMT_NV12, 1);
 
-        yuv.read(buf, 4608000);
+        nv12.read(buf, size);
         av_frame_make_writable(frame.get());
         memcpy(frame->data[0], buf, frame->linesize[0] * frame->height);
         memcpy(frame->data[1], buf + frame->linesize[0] * frame->height, frame->linesize[1] * frame->height / 2);
-        memcpy(frame->data[2], buf + frame->linesize[0] * frame->height * 5 / 4, frame->linesize[2] * frame->height / 2);
-        static int i = 0;
+        
         frame->pts = i++;
         if (enc.encode_push_frame(frame) == 0)
         {
             while (enc.encode_get_packet(packet) == 0)
             {
-                packet->pts = av_rescale_q(packet->pts, { 1, 15 }, timebase);
+                packet->pts = av_rescale_q(packet->pts, { 1, 23 }, timebase);
+                packet->dts = packet->pts;
+                packet->duration = av_rescale_q(1, { 1, 23 }, timebase);
                 std::cout << "pts : " << packet->pts << std::endl;
                 mux.write_packet(packet);
+                packet = gff::GetPacket();
             }
         }
     }
@@ -233,9 +239,12 @@ int test_mux(const char* out)
     auto packet = gff::GetPacket();
     while (enc.encode_get_packet(packet) == 0)
     {
-        packet->pts = av_rescale_q(packet->pts, { 1, 15 }, timebase);
+        packet->pts = av_rescale_q(packet->pts, { 1, 23 }, timebase);
+        packet->dts = packet->pts;
+        packet->duration = av_rescale_q(1, { 1, 23 }, timebase);
         std::cout << "pts : " << packet->pts << std::endl;
         mux.write_packet(packet);
+        packet = gff::GetPacket();
     }
     mux.cleanup();
     enc.cleanup();
@@ -248,8 +257,8 @@ int test_mux(const char* out)
 int test_sws(const char* in)
 {
     std::ifstream yuv(in, std::ios::binary);
-    std::ofstream argb("out.argb", std::ios::binary);
-    char* buf = static_cast<char*>(malloc(4608000));
+    std::ofstream nv12("out.nv12", std::ios::binary);
+    char* buf = static_cast<char*>(malloc(460800));
     if (buf == nullptr)
     {
         return 0;
@@ -258,7 +267,7 @@ int test_sws(const char* in)
     auto frame = gff::GetFrame();
     auto frame2 = gff::GetFrame();
     gff::GetFrameBuf(frame, 640, 480, AV_PIX_FMT_YUV420P, 1);
-    gff::GetFrameBuf(frame2, 640, 480, AV_PIX_FMT_YUV420P, 1);
+    gff::GetFrameBuf(frame2, 640, 480, AV_PIX_FMT_NV12, 1);
 
     gff::gsws sws;
     sws.create_sws(static_cast<AVPixelFormat>(frame->format), frame->width, frame->height,
@@ -266,18 +275,19 @@ int test_sws(const char* in)
 
     while (!yuv.eof())
     {
-        yuv.read(buf, 4608000);
+        yuv.read(buf, 460800);
         memcpy(frame->data[0], buf, frame->linesize[0] * frame->height);
         memcpy(frame->data[1], buf + frame->linesize[0] * frame->height, frame->linesize[1] * frame->height / 2);
         memcpy(frame->data[2], buf + frame->linesize[0] * frame->height * 5 / 4, frame->linesize[2] * frame->height / 2);
 
         int h = sws.scale(frame->data, frame->linesize, 0, frame->height, frame2->data, frame2->linesize);
-        argb.write(reinterpret_cast<char*>(frame2->data[0]), static_cast<std::streamsize>(frame2->linesize[0])*h);
+        nv12.write(reinterpret_cast<const char*>(frame2->data[0]), static_cast<int64_t>(frame2->linesize[0]) * h);
+        nv12.write(reinterpret_cast<const char*>(frame2->data[1]), static_cast<int64_t>(frame2->linesize[1]) * h / 2);
 
         frame = gff::GetFrame();
         frame2 = gff::GetFrame();
         gff::GetFrameBuf(frame, 640, 480, AV_PIX_FMT_YUV420P, 1);
-        gff::GetFrameBuf(frame2, 640, 480, AV_PIX_FMT_YUV420P, 1);
+        gff::GetFrameBuf(frame2, 640, 480, AV_PIX_FMT_NV12, 1);
     }
 
     sws.cleanup();
@@ -350,13 +360,13 @@ int main(int argc, const char* argv[])
     std::cout << "hello g-ffmpeg!" << std::endl;
     //av_log_set_level(AV_LOG_TRACE);
 
-    test_demux("gx.mkv");// gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
-    test_dec("gx.mkv");// gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
-    test_enc_video("out.yuv");// out.yuv这个文件太大了，没有上传github，可以用解码的例子生成
-    test_enc_audio("out.pcm");// out.pcm这个文件太大了，没有上传github，可以用解码的例子生成
-    test_mux("out.mp4");//out.yuv
-    test_sws("out.yuv");//out.yuv
-    test_swr("out.pcm");//out.pcm
+    test_demux("gx.mkv");//gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
+    test_dec("gx.mkv");//gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
+    test_enc_video("out.yuv");//out.yuv这个文件太大了，没有上传github，可以用解码的例子生成
+    test_enc_audio("out.pcm");//out.pcm这个文件太大了，没有上传github，可以用解码的例子生成
+    test_sws("out.yuv");//out.yuv这个文件太大了，没有上传github，可以用解码的例子生成
+    test_swr("out.pcm");//out.pcm这个文件太大了，没有上传github，可以用解码的例子生成
+    test_mux("out.mp4");//out.nv12这个文件太大了，没有上传github，可以用解码的例子生成
 
     std::cin.get();
     return 0;

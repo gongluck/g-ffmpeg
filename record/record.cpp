@@ -45,7 +45,8 @@ int main(int argc, char* argv[])
                 packet_queue.swap(empty);
             }
             packet_queue.push(packet);
-            std::cout << "got a packet, index " << packet->stream_index << " pts " << packet->pts << std::endl;
+            std::cout << "got a packet, index " << packet->stream_index << " pts " <<
+                av_rescale_q(packet->pts, vtimebase, { 1,1 }) << std::endl;
         }
 
         packet = gff::GetPacket();

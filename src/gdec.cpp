@@ -63,7 +63,6 @@ namespace gff
     {
         LOCK();
         CHECKNOTSTOP();
-        int ret = 0;
 
         if (codectx_ == nullptr)
         {
@@ -73,7 +72,7 @@ namespace gff
         if (packet != nullptr)
         {
             // 发送将要解码的数据
-            ret = avcodec_send_packet(codectx_, packet.get());
+            int ret = avcodec_send_packet(codectx_, packet.get());
             CHECKFFRET(ret);
         }
         
