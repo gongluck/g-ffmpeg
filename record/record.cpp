@@ -19,6 +19,9 @@
 #include "../src/genc.h"
 #include "../src/gmux.h"
 
+const int FPS = 30;
+const char* STRFPS = "30";
+
 int main(int argc, char* argv[])
 {
     int ret = 0;
@@ -41,7 +44,7 @@ int main(int argc, char* argv[])
     std::mutex opacket_queue_mutex;
     // 视频解封装
     gff::gdemux demux_desktop;
-    ret = demux_desktop.open("desktop", "gdigrab", { {"framerate", "30"} });
+    ret = demux_desktop.open("desktop", "gdigrab", { {"framerate", STRFPS} });
     CHECKFFRET(ret);
     ret = demux_desktop.get_steam_index(videovec, audiovec);
     CHECKFFRET(ret);
@@ -137,7 +140,6 @@ int main(int argc, char* argv[])
                 }
 
                 pushframe->pts = frame->pts;
-                pushframe->pkt_dts = frame->pts;
 
                 {
                     std::lock_guard<decltype(vframe_queue_mutex)> _lock(vframe_queue_mutex);
@@ -185,7 +187,7 @@ int main(int argc, char* argv[])
 
     // 视频编码
     gff::genc venc;
-    ret = venc.set_video_param("h264_qsv", 2000000, 1920, 1080, { 1,30 }, { 30,1 }, 30, 0, AV_PIX_FMT_NV12);
+    ret = venc.set_video_param("h264_qsv", 2000000, 1920, 1080, { 1, FPS }, { FPS,1 }, FPS, 0, AV_PIX_FMT_NV12);
     CHECKFFRET(ret);
     ret = venc.get_codectx(vcodectx);
     CHECKFFRET(ret);
@@ -197,6 +199,7 @@ int main(int argc, char* argv[])
         decltype(gff::GetFrame()) frame = nullptr;
         do
         {
+            frame = nullptr;
             {
                 std::lock_guard<decltype(vframe_queue_mutex)> _lock(vframe_queue_mutex);
                 if (vframe_queue.size() > 0)
@@ -208,6 +211,8 @@ int main(int argc, char* argv[])
 
             if (frame != nullptr)
             {
+                /*std::cout << "got a vframe, pts " <<
+                    av_rescale_q(frame->pts, vtimebase, { 1,1 }) << std::endl;*/
                 ret = venc.encode_push_frame(frame);
                 CHECKFFRET(ret);
                 do
@@ -260,6 +265,7 @@ int main(int argc, char* argv[])
         int64_t lastpts = -1;
         do
         {
+            packet = nullptr;
             {
                 std::lock_guard<decltype(opacket_queue_mutex)> _lock(opacket_queue_mutex);
                 if (opacket_queue.size() > 0)
@@ -275,13 +281,14 @@ int main(int argc, char* argv[])
                 if (packet->pts <= lastpts)
                 {
                     packet->pts = lastpts + 1;
+                    
                 }
                 packet->duration = 1;
-                lastpts = packet->pts;
                 packet->dts = packet->pts;
+                lastpts = packet->pts;
                 
-                std::cout << "write a vpacket, pts " <<
-                    av_rescale_q(packet->pts, ovtimebase, { 1,1 }) << std::endl;
+                /*std::cout << "write a vpacket, pts " <<
+                    av_rescale_q(packet->pts, ovtimebase, { 1,1 }) << std::endl;*/
                 ret = mux.write_packet(packet);
                 CHECKFFRET(ret);
             }
@@ -314,6 +321,8 @@ int main(int argc, char* argv[])
     {
         mux_thread.join();
     }
+
+    std::cin.get();
 
     return 0;
 }
