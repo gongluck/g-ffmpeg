@@ -62,6 +62,10 @@ namespace gff
 
     // 分配AVFrame数据空间
     int GetFrameBuf(std::shared_ptr<AVFrame> frame, int w, int h, AVPixelFormat fmt, int align);
+    int GetFrameBuf(std::shared_ptr<AVFrame> frame, int samples, uint64_t layout, AVSampleFormat fmt, int align);
+
+    // 确保能写frame
+    int frame_make_writable(std::shared_ptr<AVFrame> frame);
 }//gff
 
 #endif//__GUTIL_H__

@@ -58,4 +58,28 @@ namespace gff
         
         return av_frame_get_buffer(frame.get(), align);
     }
+
+    int GetFrameBuf(std::shared_ptr<AVFrame> frame, int samples, uint64_t layout, AVSampleFormat fmt, int align)
+    {
+        if (frame == nullptr)
+        {
+            CHECKFFRET(AVERROR(EINVAL));
+        }
+
+        frame->nb_samples = samples;
+        frame->channel_layout = layout;
+        frame->format = fmt;
+
+        return av_frame_get_buffer(frame.get(), align);
+    }
+
+    int frame_make_writable(std::shared_ptr<AVFrame> frame)
+    {
+        if (frame == nullptr)
+        {
+            CHECKFFRET(AVERROR(EINVAL));
+        }
+
+        return av_frame_make_writable(frame.get());
+    }
 }//gff
