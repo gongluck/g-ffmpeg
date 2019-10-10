@@ -12,6 +12,7 @@
 
 #include <iostream>
 #include <queue>
+#include <condition_variable>
 #include "../src/gutil.h"
 #include "../src/gdemux.h"
 #include "../src/gdec.h"
@@ -21,6 +22,7 @@
 
 const int FPS = 30;
 const char* STRFPS = "30";
+const int MAXNUM = 100;
 
 int main(int argc, char* argv[])
 {
@@ -38,10 +40,13 @@ int main(int argc, char* argv[])
     // 帧队列
     std::queue<std::shared_ptr<AVPacket>> packet_queue;
     std::mutex packet_queue_mutex;
+    std::condition_variable packet_queue_cv;
     std::queue<std::shared_ptr<AVFrame>> vframe_queue;
     std::mutex vframe_queue_mutex;
+    std::condition_variable vframe_queue_cv;
     std::queue<std::shared_ptr<AVPacket>> opacket_queue;
     std::mutex opacket_queue_mutex;
+    std::condition_variable opacket_queue_cv;
     // 视频解封装
     gff::gdemux demux_desktop;
     ret = demux_desktop.open("desktop", "gdigrab", { {"framerate", STRFPS} });
@@ -58,38 +63,40 @@ int main(int argc, char* argv[])
         decltype(gff::GetPacket()) packet = nullptr;
         do
         {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            // 分配packet
             packet = gff::GetPacket();
             if (packet == nullptr)
             {
                 CHECKFFRET(AVERROR(ENOMEM));
             }
-
+            // 读packet
             ret = demux_desktop.readpacket(packet);
             CHECKFFRET(ret);
-
-            if (packet != nullptr)
+            // pts
+            if (startpts == -1)
             {
-                if (startpts == -1)
-                {
-                    startpts = packet->pts;
-                }
-                packet->pts -= startpts;
+                startpts = packet->pts;
+            }
+            packet->pts -= startpts;
 
-                /*std::cout << "got a packet, index " << packet->stream_index << " pts " <<
-                    av_rescale_q(packet->pts, vtimebase, { 1,1 }) << std::endl;*/
-                
+            /*std::cout << "got a packet, index " << packet->stream_index << " pts " <<
+                av_rescale_q(packet->pts, vtimebase, { 1,1 }) << std::endl;*/
+
+            {
+                // 推packet队列
                 std::lock_guard<decltype(packet_queue_mutex)> _lock(packet_queue_mutex);
-                if (packet_queue.size() > 100)
+                if (packet_queue.size() > MAXNUM)
                 {
                     std::queue<std::shared_ptr<AVPacket>> empty;
                     packet_queue.swap(empty);
                     std::cout << "too many packets" << std::endl;
                 }
-
                 packet_queue.push(packet);
+                packet_queue_cv.notify_all();
             }
-
-        } while (ret == 0 && !bstop);
+            
+        } while (!bstop);
 
         std::cout << "exit demux_desktop_thread" << std::endl;
         return 0;
@@ -110,11 +117,13 @@ int main(int argc, char* argv[])
         bool bcreated = false;
         do
         {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
             if (frame != nullptr)
             {
                 decltype(gff::GetFrame()) pushframe = nullptr;
                 if (frame->format != AV_PIX_FMT_NV12)
                 {
+                    // 帧格式转换
                     if (!bcreated)
                     {
                         ret = sws.create_sws(static_cast<AVPixelFormat>(frame->format), frame->width, frame->height,
@@ -139,17 +148,20 @@ int main(int argc, char* argv[])
                     pushframe = frame;
                 }
 
+                // pts
                 pushframe->pts = frame->pts;
 
                 {
+                    // 推vframe队列
                     std::lock_guard<decltype(vframe_queue_mutex)> _lock(vframe_queue_mutex);
-                    if (vframe_queue.size() > 100)
+                    if (vframe_queue.size() > MAXNUM)
                     {
                         std::queue<std::shared_ptr<AVFrame>> empty;
                         vframe_queue.swap(empty);
                         std::cout << "too many vframes" << std::endl;
                     }
                     vframe_queue.push(pushframe);
+                    vframe_queue_cv.notify_all();
                 }
                 
                 /*std::cout << "got a vframe, pts " <<
@@ -163,14 +175,23 @@ int main(int argc, char* argv[])
             }
 
             {
-                std::lock_guard<decltype(packet_queue_mutex)> _lock(packet_queue_mutex);
-                if (packet_queue.size() > 0)
+                std::unique_lock<std::mutex> lck(packet_queue_mutex);
+                if (packet_queue.size() > 0) 
                 {
                     packet = packet_queue.front();
                     packet_queue.pop();
                 }
+                else if(packet_queue_cv.wait_for(lck, std::chrono::seconds(1)) != std::cv_status::timeout)
+                {
+                    if (packet_queue.size() > 0)
+                    {
+                        packet = packet_queue.front();
+                        packet_queue.pop();
+                    }   
+                }
             }
 
+            // 解码
             ret = vdec.decode(packet, frame);
             if (ret == AVERROR(EAGAIN))
             {
@@ -199,13 +220,22 @@ int main(int argc, char* argv[])
         decltype(gff::GetFrame()) frame = nullptr;
         do
         {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
             frame = nullptr;
             {
-                std::lock_guard<decltype(vframe_queue_mutex)> _lock(vframe_queue_mutex);
+                std::unique_lock<std::mutex> lck(vframe_queue_mutex);
                 if (vframe_queue.size() > 0)
                 {
                     frame = vframe_queue.front();
                     vframe_queue.pop();
+                }
+                else if (packet_queue_cv.wait_for(lck, std::chrono::seconds(1)) != std::cv_status::timeout)
+                {
+                    if (vframe_queue.size() > 0)
+                    {
+                        frame = vframe_queue.front();
+                        vframe_queue.pop();
+                    }
                 }
             }
 
@@ -213,6 +243,7 @@ int main(int argc, char* argv[])
             {
                 /*std::cout << "got a vframe, pts " <<
                     av_rescale_q(frame->pts, vtimebase, { 1,1 }) << std::endl;*/
+                // 编码
                 ret = venc.encode_push_frame(frame);
                 CHECKFFRET(ret);
                 do
@@ -223,14 +254,16 @@ int main(int argc, char* argv[])
                     /*std::cout << "got a vpacket, pts " <<
                         av_rescale_q(packet->pts, vtimebase, { 1,1 }) << std::endl;*/
                     {
+                        // 推opacket队列
                         std::lock_guard<decltype(opacket_queue_mutex)> _lock(opacket_queue_mutex);
-                        if (opacket_queue.size() > 100)
+                        if (opacket_queue.size() > MAXNUM)
                         {
                             std::queue<std::shared_ptr<AVPacket>> empty;
                             opacket_queue.swap(empty);
                             std::cout << "too many opackets" << std::endl;
                         }
                         opacket_queue.push(packet);
+                        opacket_queue_cv.notify_all();
                     }
                 } while (ret == 0);
                 if (ret == AVERROR(EAGAIN))
@@ -267,16 +300,25 @@ int main(int argc, char* argv[])
         {
             packet = nullptr;
             {
-                std::lock_guard<decltype(opacket_queue_mutex)> _lock(opacket_queue_mutex);
+                std::unique_lock<std::mutex> lck(opacket_queue_mutex);
                 if (opacket_queue.size() > 0)
                 {
                     packet = opacket_queue.front();
                     opacket_queue.pop();
                 }
+                else if (packet_queue_cv.wait_for(lck, std::chrono::seconds(1)) != std::cv_status::timeout)
+                {
+                    if (opacket_queue.size() > 0)
+                    {
+                        packet = opacket_queue.front();
+                        opacket_queue.pop();
+                    }
+                }
             }
             
             if (packet != nullptr)
             {
+                // 封装
                 packet->pts = av_rescale_q(packet->pts, vtimebase, ovtimebase);
                 if (packet->pts <= lastpts)
                 {
@@ -302,6 +344,7 @@ int main(int argc, char* argv[])
     char buf[10] = { 0 };
     while (std::cin.getline(buf, sizeof(buf)) && buf[0] != 'q')
     {
+        std::this_thread::sleep_for(std::chrono::microseconds(100));
     }
 
     bstop = true;
