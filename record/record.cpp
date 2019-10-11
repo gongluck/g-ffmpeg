@@ -23,6 +23,9 @@
 const int FPS = 30;
 const char* STRFPS = "30";
 const int MAXNUM = 100;
+const int WIDTH = 1920;
+const int HEIGHT = 1080;
+const long long BITRATE = 2000000;
 
 int main(int argc, char* argv[])
 {
@@ -72,7 +75,11 @@ int main(int argc, char* argv[])
             }
             // 读packet
             ret = demux_desktop.readpacket(packet);
-            CHECKFFRET(ret);
+            if (ret != 0)
+            {
+                av_log(nullptr, AV_LOG_ERROR, "%s %d : %ld\n", __FILE__, __LINE__, ret);
+                continue;
+            }
             // pts
             if (startpts == -1)
             {
@@ -95,7 +102,7 @@ int main(int argc, char* argv[])
                 packet_queue.push(packet);
                 packet_queue_cv.notify_all();
             }
-            
+
         } while (!bstop);
 
         std::cout << "exit demux_desktop_thread" << std::endl;
@@ -163,7 +170,7 @@ int main(int argc, char* argv[])
                     vframe_queue.push(pushframe);
                     vframe_queue_cv.notify_all();
                 }
-                
+
                 /*std::cout << "got a vframe, pts " <<
                     av_rescale_q(frame->pts, vtimebase, { 1,1 }) << std::endl;*/
             }
@@ -176,18 +183,18 @@ int main(int argc, char* argv[])
 
             {
                 std::unique_lock<std::mutex> lck(packet_queue_mutex);
-                if (packet_queue.size() > 0) 
+                if (packet_queue.size() > 0)
                 {
                     packet = packet_queue.front();
                     packet_queue.pop();
                 }
-                else if(packet_queue_cv.wait_for(lck, std::chrono::seconds(1)) != std::cv_status::timeout)
+                else if (packet_queue_cv.wait_for(lck, std::chrono::seconds(1)) != std::cv_status::timeout)
                 {
                     if (packet_queue.size() > 0)
                     {
                         packet = packet_queue.front();
                         packet_queue.pop();
-                    }   
+                    }
                 }
             }
 
@@ -208,7 +215,7 @@ int main(int argc, char* argv[])
 
     // 视频编码
     gff::genc venc;
-    ret = venc.set_video_param("h264_qsv", 2000000, 1920, 1080, { 1, FPS }, { FPS,1 }, FPS, 0, AV_PIX_FMT_NV12);
+    ret = venc.set_video_param("h264_qsv", BITRATE, WIDTH, HEIGHT, { 1, FPS }, { FPS,1 }, FPS, 0, AV_PIX_FMT_NV12);
     CHECKFFRET(ret);
     ret = venc.get_codectx(vcodectx);
     CHECKFFRET(ret);
@@ -243,7 +250,7 @@ int main(int argc, char* argv[])
             {
                 /*std::cout << "got a vframe, pts " <<
                     av_rescale_q(frame->pts, vtimebase, { 1,1 }) << std::endl;*/
-                // 编码
+                    // 编码
                 ret = venc.encode_push_frame(frame);
                 CHECKFFRET(ret);
                 do
@@ -270,7 +277,7 @@ int main(int argc, char* argv[])
                 {
                     ret = 0;
                 }
-            }       
+            }
 
         } while (ret == 0 && !bstop);
 
@@ -315,7 +322,7 @@ int main(int argc, char* argv[])
                     }
                 }
             }
-            
+
             if (packet != nullptr)
             {
                 // 封装
@@ -323,12 +330,12 @@ int main(int argc, char* argv[])
                 if (packet->pts <= lastpts)
                 {
                     packet->pts = lastpts + 1;
-                    
+
                 }
                 packet->duration = 1;
                 packet->dts = packet->pts;
                 lastpts = packet->pts;
-                
+
                 /*std::cout << "write a vpacket, pts " <<
                     av_rescale_q(packet->pts, ovtimebase, { 1,1 }) << std::endl;*/
                 ret = mux.write_packet(packet);
@@ -340,7 +347,7 @@ int main(int argc, char* argv[])
         return 0;
     }
     );
-    
+
     char buf[10] = { 0 };
     while (std::cin.getline(buf, sizeof(buf)) && buf[0] != 'q')
     {
