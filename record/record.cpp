@@ -78,6 +78,7 @@ int main(int argc, char* argv[])
             if (ret != 0)
             {
                 av_log(nullptr, AV_LOG_ERROR, "%s %d : %ld\n", __FILE__, __LINE__, ret);
+                std::this_thread::sleep_for(std::chrono::seconds(1));
                 continue;
             }
             // pts
