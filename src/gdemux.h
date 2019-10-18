@@ -54,6 +54,9 @@ namespace gff
         // 跳转
         int seek_frame(int index, int64_t timestamp, bool seekanyframe = false);
 
+        // 时长
+        int get_duration(int64_t& duration, AVRational timebase = {1,1});
+
     private:
         AVFormatContext* fmtctx_ = nullptr;
         AVInputFormat* infmt_ = nullptr;

@@ -154,4 +154,14 @@ namespace gff
             return av_seek_frame(fmtctx_, index, timestamp, AVSEEK_FLAG_BACKWARD);
         }
     }
+
+    int gdemux::get_duration(int64_t& duration, AVRational timebase)
+    {
+        LOCK();
+        CHECKNOTSTOP();
+
+        duration = av_rescale_q(fmtctx_->duration, { 1, AV_TIME_BASE }, timebase);
+
+        return 0;
+    }
 }//gff

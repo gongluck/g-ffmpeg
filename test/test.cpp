@@ -14,6 +14,9 @@ int test_demux(const char* in)
     demux.open(in);
     const AVCodecParameters* par = nullptr;
     AVRational timebase;
+    int64_t duration = 0;
+    demux.get_duration(duration, {1, 1000});
+    std::cout << "duration : " << duration << " s" << std::endl;
     auto packet = gff::GetPacket();
     while (demux.readpacket(packet) == 0)
     {
