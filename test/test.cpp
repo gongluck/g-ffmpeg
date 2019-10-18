@@ -14,11 +14,15 @@ int test_demux(const char* in)
     demux.open(in);
     const AVCodecParameters* par = nullptr;
     AVRational timebase;
-    demux.get_stream_par(0, par, timebase);
     auto packet = gff::GetPacket();
     while (demux.readpacket(packet) == 0)
     {
+        demux.get_stream_par(packet->stream_index, par, timebase);
         std::cout << "pts : " << av_rescale_q(packet->pts, timebase, { 1,1 }) << " " << packet->stream_index << std::endl;
+        if (av_rescale_q(packet->pts, timebase, { 1,1 }) >= 10)
+        {
+            demux.seek_frame(packet->stream_index, av_rescale_q(2, { 1,1 }, timebase));
+        }
         packet = gff::GetPacket();
     }
     demux.cleanup();
@@ -382,13 +386,13 @@ int main(int argc, const char* argv[])
     std::cout << "hello g-ffmpeg!" << std::endl;
     //av_log_set_level(AV_LOG_TRACE);
 
-    //test_demux("gx.mkv");//gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
+    test_demux("gx.mkv");//gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
     //test_dec("gx.mkv");//gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
     //test_enc_video("out.yuv");//out.yuv这个文件太大了，没有上传github，可以用解码的例子生成
     //test_enc_audio("out.pcm");//out.pcm这个文件太大了，没有上传github，可以用解码的例子生成
     //test_sws("out.yuv");//out.yuv这个文件太大了，没有上传github，可以用解码的例子生成
     //test_swr("out.pcm");//out.pcm这个文件太大了，没有上传github，可以用解码的例子生成
-    test_mux("out.mp4");//out.nv12这个文件太大了，没有上传github，可以用解码的例子生成
+    //test_mux("out.mp4");//out.nv12这个文件太大了，没有上传github，可以用解码的例子生成
 
     std::cin.get();
     return 0;

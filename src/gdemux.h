@@ -51,6 +51,9 @@ namespace gff
         // 获取流参数
         int get_stream_par(int index, const AVCodecParameters*& par, AVRational& timebase);
 
+        // 跳转
+        int seek_frame(int index, int64_t timestamp, bool seekanyframe = false);
+
     private:
         AVFormatContext* fmtctx_ = nullptr;
         AVInputFormat* infmt_ = nullptr;

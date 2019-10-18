@@ -134,4 +134,24 @@ namespace gff
 
         return 0;
     }
+
+    int gdemux::seek_frame(int index, int64_t timestamp, bool seekanyframe)
+    {
+        LOCK();
+        CHECKNOTSTOP();
+
+        if (index < 0 || static_cast<unsigned int>(index) >= fmtctx_->nb_streams)
+        {
+            CHECKFFRET(AVERROR(EINVAL));
+        }
+         
+        if (seekanyframe)
+        {
+            return av_seek_frame(fmtctx_, index, timestamp, AVSEEK_FLAG_ANY);
+        }
+        else
+        {
+            return av_seek_frame(fmtctx_, index, timestamp, AVSEEK_FLAG_BACKWARD);
+        }
+    }
 }//gff
