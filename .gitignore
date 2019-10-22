@@ -1,5 +1,4 @@
 # visual studio
-*.user
 .vs
 tmp
 bin
