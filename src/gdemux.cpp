@@ -117,12 +117,12 @@ namespace gff
         return 0;
     }
 
-    int gdemux::get_stream_par(int index, const AVCodecParameters*& par, AVRational& timebase)
+    int gdemux::get_stream_par(unsigned int index, const AVCodecParameters*& par, AVRational& timebase)
     {
         LOCK();
         CHECKNOTSTOP();
 
-        if (index < 0 || static_cast<unsigned int>(index) >= fmtctx_->nb_streams)
+        if (index >= fmtctx_->nb_streams)
         {
             CHECKFFRET(AVERROR(EINVAL));
         }

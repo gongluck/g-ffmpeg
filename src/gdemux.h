@@ -49,7 +49,7 @@ namespace gff
         int get_steam_index(std::vector<unsigned int>& videovec, std::vector<unsigned int>& audiovec);
 
         // 获取流参数
-        int get_stream_par(int index, const AVCodecParameters*& par, AVRational& timebase);
+        int get_stream_par(unsigned int index, const AVCodecParameters*& par, AVRational& timebase);
 
         // 跳转
         int seek_frame(int index, int64_t timestamp, bool seekanyframe = false);

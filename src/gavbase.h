@@ -13,6 +13,7 @@
 #ifndef __GAVBASE_H__
 #define __GAVBASE_H__
 
+#include <memory>
 #include <mutex>
 
 namespace gff

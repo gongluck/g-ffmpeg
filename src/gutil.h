@@ -31,13 +31,13 @@ extern "C"
 #define CHECKSTOP() \
 if(getstatus() != STOP)\
 {\
-    av_log(nullptr, AV_LOG_ERROR, "%s %d : %ld\n", __FILE__, __LINE__, AVERROR(EBUSY));\
+    av_log(nullptr, AV_LOG_ERROR, "%s %d : %d\n", __FILE__, __LINE__, AVERROR(EBUSY));\
     return AVERROR(EINVAL);\
 }
 #define CHECKNOTSTOP() \
 if(getstatus() == STOP)\
 {\
-    av_log(nullptr, AV_LOG_ERROR, "%s %d : %ld\n", __FILE__, __LINE__, AVERROR(EINVAL));\
+    av_log(nullptr, AV_LOG_ERROR, "%s %d : %d\n", __FILE__, __LINE__, AVERROR(EINVAL));\
     return AVERROR(EINVAL);\
 }
 
@@ -45,7 +45,7 @@ if(getstatus() == STOP)\
 #define CHECKFFRET(ret) \
 if (ret < 0)\
 {\
-    av_log(nullptr, AV_LOG_ERROR, "%s %d : %ld\n", __FILE__, __LINE__, ret);\
+    av_log(nullptr, AV_LOG_ERROR, "%s %d : %d\n", __FILE__, __LINE__, ret);\
     return ret;\
 }
 
