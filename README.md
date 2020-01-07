@@ -8,4 +8,5 @@
 
 [![](https://codescene.io/projects/5463/status.svg) Get more details at **codescene.io**.](https://codescene.io/projects/5463/jobs/latest-successful/results)
 
+Simple encapsulation of ffmpeg 4.0
 对ffmpeg4.0进行简单的封装
