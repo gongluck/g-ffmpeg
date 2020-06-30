@@ -66,6 +66,9 @@ namespace gff
 
     // 确保能写frame
     int frame_make_writable(std::shared_ptr<AVFrame> frame);
+
+    // 获取硬解码数据
+    int hwframe_to_frame(std::shared_ptr<AVFrame> hwframe, std::shared_ptr<AVFrame> frame);
 }//gff
 
 #endif//__GUTIL_H__

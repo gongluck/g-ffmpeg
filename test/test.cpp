@@ -11,11 +11,13 @@
 int test_demux(const char* in)
 {
     gff::gdemux demux;
-    demux.open(in);
+    auto ret = demux.open(in);
+    CHECKFFRET(ret);
     const AVCodecParameters* par = nullptr;
     AVRational timebase;
     int64_t duration = 0;
-    demux.get_duration(duration, {1, 1000});
+    ret = demux.get_duration(duration, {1, 1000});
+    CHECKFFRET(ret);
     std::cout << "duration : " << duration << " s" << std::endl;
     auto packet = gff::GetPacket();
     while (demux.readpacket(packet) == 0)
@@ -24,11 +26,13 @@ int test_demux(const char* in)
         std::cout << "pts : " << av_rescale_q(packet->pts, timebase, { 1,1 }) << " " << packet->stream_index << std::endl;
         if (av_rescale_q(packet->pts, timebase, { 1,1 }) >= 10)
         {
-            demux.seek_frame(packet->stream_index, av_rescale_q(2, { 1,1 }, timebase));
+            static int times = 0;
+            if(times++ < 10)
+                demux.seek_frame(packet->stream_index, av_rescale_q(2, { 1,1 }, timebase));
         }
-        packet = gff::GetPacket();
     }
-    demux.cleanup();
+    ret = demux.cleanup();
+    CHECKFFRET(ret);
 
     return 0;
 }
@@ -36,23 +40,29 @@ int test_demux(const char* in)
 int test_dec(const char* in)
 {
     gff::gdemux demux;
-    demux.open(in);
+    auto ret = demux.open(in);
     
     auto packet = gff::GetPacket();
     auto frame = gff::GetFrame();
+    auto frame2 = gff::GetFrame();
 
     std::vector<unsigned int> videovec, audiovec;
-    demux.get_steam_index(videovec, audiovec);
+    ret = demux.get_steam_index(videovec, audiovec);
+    CHECKFFRET(ret);
     const AVCodecParameters* vpar = nullptr;
     AVRational vtimebase, atimebase;
     const AVCodecParameters* apar = nullptr;
-    demux.get_stream_par(videovec.at(0), vpar, vtimebase);
-    demux.get_stream_par(audiovec.at(0), apar, atimebase);
+    ret = demux.get_stream_par(videovec.at(0), vpar, vtimebase);
+    CHECKFFRET(ret);
+    ret = demux.get_stream_par(audiovec.at(0), apar, atimebase);
+    CHECKFFRET(ret);
 
     gff::gdec vdec;
-    vdec.copy_param(vpar);
+    ret = vdec.copy_param(vpar, AV_HWDEVICE_TYPE_CUDA);
+    CHECKFFRET(ret);
     gff::gdec adec;
-    adec.copy_param(apar);
+    ret = adec.copy_param(apar);
+    CHECKFFRET(ret);
 
     while (demux.readpacket(packet) == 0)
     {
@@ -62,11 +72,25 @@ int test_dec(const char* in)
             {
                 do
                 {
-                    std::cout << "pts : " << av_rescale_q(frame->pts, vtimebase, { 1,1 }) << " " << packet->stream_index << std::endl;
-                    static std::ofstream f("out.yuv", std::ios::binary | std::ios::trunc);
-                    f.write(reinterpret_cast<const char*>(frame->data[0]), static_cast<int64_t>(frame->linesize[0]) * frame->height);
-                    f.write(reinterpret_cast<const char*>(frame->data[1]), static_cast<int64_t>(frame->linesize[1]) * frame->height / 2);
-                    f.write(reinterpret_cast<const char*>(frame->data[2]), static_cast<int64_t>(frame->linesize[2]) * frame->height / 2);
+                    std::cout << "format : " << frame->format << " pts : " << av_rescale_q(frame->pts, vtimebase, { 1,1 }) << " " << packet->stream_index << std::endl;
+                    if (frame->format == AV_PIX_FMT_YUV420P)
+                    {
+                        static std::ofstream f("out.yuv", std::ios::binary | std::ios::trunc);
+                        f.write(reinterpret_cast<const char*>(frame->data[0]), static_cast<int64_t>(frame->linesize[0]) * frame->height);
+                        f.write(reinterpret_cast<const char*>(frame->data[1]), static_cast<int64_t>(frame->linesize[1]) * frame->height / 2);
+                        f.write(reinterpret_cast<const char*>(frame->data[2]), static_cast<int64_t>(frame->linesize[2]) * frame->height / 2);
+                    }
+                    else if (frame->format == AV_PIX_FMT_CUDA)
+                    {
+                        ret = gff::hwframe_to_frame(frame, frame2);
+                        CHECKFFRET(ret);
+                        if (frame2->format == AV_PIX_FMT_NV12)
+                        {
+                            static std::ofstream f("out.nv12", std::ios::binary | std::ios::trunc);
+                            f.write(reinterpret_cast<const char*>(frame2->data[0]), static_cast<int64_t>(frame2->linesize[0]) * frame2->height);
+                            f.write(reinterpret_cast<const char*>(frame2->data[1]), static_cast<int64_t>(frame2->linesize[1]) * frame2->height / 2);
+                        }
+                    }
                 } while (vdec.decode(nullptr, frame) >= 0);
             }
         }
@@ -89,8 +113,6 @@ int test_dec(const char* in)
                 } while (adec.decode(nullptr, frame) >= 0);
             }
         }
-        packet = gff::GetPacket();
-        frame = gff::GetFrame();
     }
 
     vdec.cleanup();
@@ -389,8 +411,8 @@ int main(int argc, const char* argv[])
     std::cout << "hello g-ffmpeg!" << std::endl;
     //av_log_set_level(AV_LOG_TRACE);
 
-    test_demux("gx.mkv");//gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
-    //test_dec("gx.mkv");//gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
+    //test_demux("gx.mkv");//gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
+    test_dec("gx.mkv");//gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
     //test_enc_video("out.yuv");//out.yuv这个文件太大了，没有上传github，可以用解码的例子生成
     //test_enc_audio("out.pcm");//out.pcm这个文件太大了，没有上传github，可以用解码的例子生成
     //test_sws("out.yuv");//out.yuv这个文件太大了，没有上传github，可以用解码的例子生成

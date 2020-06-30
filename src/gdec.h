@@ -37,7 +37,7 @@ namespace gff
         int cleanup() override;
 
         // 设置解码参数
-        int copy_param(const AVCodecParameters* par);
+        int copy_param(const AVCodecParameters* par, AVHWDeviceType hwtype = AV_HWDEVICE_TYPE_NONE);
 
         // 解码
         int decode(std::shared_ptr<AVPacket> packet, std::shared_ptr<AVFrame> frame);

@@ -14,72 +14,78 @@
 
 namespace gff
 {
-    AVPacket* CreatePacket()
-    {
-        auto p = av_packet_alloc();
-        av_init_packet(p);
-        return p;
-    }
-    void FreePacket(AVPacket* p)
-    {
-        av_packet_unref(p);
-        av_packet_free(&p);
-    }
-    std::shared_ptr<AVPacket> GetPacket()
-    {
-        return std::shared_ptr<AVPacket>(CreatePacket(), FreePacket);
-    }
+	AVPacket* CreatePacket()
+	{
+		auto p = av_packet_alloc();
+		av_init_packet(p);
+		return p;
+	}
+	void FreePacket(AVPacket* p)
+	{
+		av_packet_unref(p);
+		av_packet_free(&p);
+	}
+	std::shared_ptr<AVPacket> GetPacket()
+	{
+		return std::shared_ptr<AVPacket>(CreatePacket(), FreePacket);
+	}
 
-    AVFrame* CreateFrame()
-    {
-        auto p = av_frame_alloc();
-        return p;
-    }
-    void FreeFrame(AVFrame* p)
-    {
-        av_frame_unref(p);
-        av_frame_free(&p);
-    }
-    std::shared_ptr<AVFrame> GetFrame()
-    {
-        return std::shared_ptr<AVFrame>(CreateFrame(), FreeFrame);
-    }
+	AVFrame* CreateFrame()
+	{
+		auto p = av_frame_alloc();
+		return p;
+	}
+	void FreeFrame(AVFrame* p)
+	{
+		av_frame_unref(p);
+		av_frame_free(&p);
+	}
+	std::shared_ptr<AVFrame> GetFrame()
+	{
+		return std::shared_ptr<AVFrame>(CreateFrame(), FreeFrame);
+	}
 
-    int GetFrameBuf(std::shared_ptr<AVFrame> frame, int w, int h, AVPixelFormat fmt, int align)
-    {
-        if (frame == nullptr)
-        {
-            CHECKFFRET(AVERROR(EINVAL));
-        }
+	int GetFrameBuf(std::shared_ptr<AVFrame> frame, int w, int h, AVPixelFormat fmt, int align)
+	{
+		if (frame == nullptr)
+		{
+			CHECKFFRET(AVERROR(EINVAL));
+		}
 
-        frame->width = w;
-        frame->height = h;
-        frame->format = fmt;
-        
-        return av_frame_get_buffer(frame.get(), align);
-    }
+		frame->width = w;
+		frame->height = h;
+		frame->format = fmt;
 
-    int GetFrameBuf(std::shared_ptr<AVFrame> frame, int samples, uint64_t layout, AVSampleFormat fmt, int align)
-    {
-        if (frame == nullptr)
-        {
-            CHECKFFRET(AVERROR(EINVAL));
-        }
+		return av_frame_get_buffer(frame.get(), align);
+	}
 
-        frame->nb_samples = samples;
-        frame->channel_layout = layout;
-        frame->format = fmt;
+	int GetFrameBuf(std::shared_ptr<AVFrame> frame, int samples, uint64_t layout, AVSampleFormat fmt, int align)
+	{
+		if (frame == nullptr)
+		{
+			CHECKFFRET(AVERROR(EINVAL));
+		}
 
-        return av_frame_get_buffer(frame.get(), align);
-    }
+		frame->nb_samples = samples;
+		frame->channel_layout = layout;
+		frame->format = fmt;
 
-    int frame_make_writable(std::shared_ptr<AVFrame> frame)
-    {
-        if (frame == nullptr)
-        {
-            CHECKFFRET(AVERROR(EINVAL));
-        }
+		return av_frame_get_buffer(frame.get(), align);
+	}
 
-        return av_frame_make_writable(frame.get());
-    }
+	int frame_make_writable(std::shared_ptr<AVFrame> frame)
+	{
+		if (frame == nullptr)
+		{
+			CHECKFFRET(AVERROR(EINVAL));
+		}
+
+		return av_frame_make_writable(frame.get());
+	}
+
+	int hwframe_to_frame(std::shared_ptr<AVFrame> hwframe, std::shared_ptr<AVFrame> frame)
+	{
+		auto ret = av_hwframe_transfer_data(frame.get(), hwframe.get(), 0);
+		CHECKFFRET(ret);
+	}
 }//gff
