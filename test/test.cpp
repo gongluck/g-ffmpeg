@@ -8,10 +8,18 @@
 #include "../src/gsws.h"
 #include "../src/gswr.h"
 
+int readpacket(void* opaque, uint8_t* buf, int buf_size)
+{
+    static std::ifstream f("gx.mkv", std::ios::binary);
+    f.read(reinterpret_cast<char*>(buf), buf_size);
+    buf_size = f.gcount();
+    return buf_size <= 0 ? EOF : buf_size;
+}
+
 int test_demux(const char* in)
 {
     gff::gdemux demux;
-    auto ret = demux.open(in);
+    auto ret = demux.open(nullptr, nullptr, {}, readpacket, nullptr);
     CHECKFFRET(ret);
     const AVCodecParameters* par = nullptr;
     AVRational timebase;
@@ -411,8 +419,8 @@ int main(int argc, const char* argv[])
     std::cout << "hello g-ffmpeg!" << std::endl;
     //av_log_set_level(AV_LOG_TRACE);
 
-    //test_demux("gx.mkv");//gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
-    test_dec("gx.mkv");//gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
+    test_demux("gx.mkv");//gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
+    //test_dec("gx.mkv");//gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
     //test_enc_video("out.yuv");//out.yuv这个文件太大了，没有上传github，可以用解码的例子生成
     //test_enc_audio("out.pcm");//out.pcm这个文件太大了，没有上传github，可以用解码的例子生成
     //test_sws("out.yuv");//out.yuv这个文件太大了，没有上传github，可以用解码的例子生成

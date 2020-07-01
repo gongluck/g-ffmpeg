@@ -85,7 +85,6 @@ namespace gff
 
 	int hwframe_to_frame(std::shared_ptr<AVFrame> hwframe, std::shared_ptr<AVFrame> frame)
 	{
-		auto ret = av_hwframe_transfer_data(frame.get(), hwframe.get(), 0);
-		CHECKFFRET(ret);
+		return av_hwframe_transfer_data(frame.get(), hwframe.get(), 0);
 	}
 }//gff

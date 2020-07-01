@@ -37,7 +37,8 @@ namespace gff
         ~gdemux();
 
         // 打开输入
-        int open(const char* in, const char* fmt = nullptr, const std::vector<std::pair<std::string, std::string>>& dicts = {});
+        int open(const char* in, const char* fmt = nullptr, const std::vector<std::pair<std::string, std::string>>& dicts = {},
+            int (*read_packet)(void* opaque, uint8_t* buf, int buf_size) = nullptr, void* opaque = nullptr);
 
         // 读取一个AVPacket
         int readpacket(std::shared_ptr<AVPacket> packet);
