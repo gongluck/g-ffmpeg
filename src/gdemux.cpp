@@ -21,7 +21,7 @@ namespace gff
     }
 
     int gdemux::open(const char* in, const char* fmt/* = nullptr*/, const std::vector<std::pair<std::string, std::string>>& dicts/* = {}*/,
-        int (*read_packet)(void* opaque, uint8_t* buf, int buf_size)/* = nullptr*/, void* opaque/* = nullptr*/)
+        int (*read_packet)(void* opaque, uint8_t* buf, int buf_size)/* = nullptr*/, void* opaque/* = nullptr*/, size_t bufsize/* = 1024*/)
     {
         LOCK();
         CHECKSTOP();
@@ -55,7 +55,7 @@ namespace gff
 
         if (read_packet != nullptr)
         {
-            auto aviobuf = static_cast<uint8_t*>(av_malloc(1024));
+            auto aviobuf = static_cast<uint8_t*>(av_malloc(bufsize));
             if (aviobuf == nullptr)
             {
                 CHECKFFRET(AVERROR(ENOMEM));
@@ -96,7 +96,14 @@ namespace gff
     {
         LOCK();
 
-        avformat_close_input(&fmtctx_);
+        if (fmtctx_ != nullptr && 
+            fmtctx_->pb != nullptr) 
+        {
+            // 清理avio相关资源
+            av_freep(&fmtctx_->pb->buffer);
+            av_freep(&fmtctx_->pb);
+        }
+        avformat_close_input(&fmtctx_); 
         av_dict_free(&dict_);
         infmt_ = nullptr;
         getstatus() = STOP;

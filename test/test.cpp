@@ -48,7 +48,7 @@ int test_demux(const char* in)
 int test_dec(const char* in)
 {
     gff::gdemux demux;
-    auto ret = demux.open(in);
+    auto ret = demux.open(in, nullptr, {}, readpacket, nullptr, 10240);
     
     auto packet = gff::GetPacket();
     auto frame = gff::GetFrame();
@@ -419,8 +419,8 @@ int main(int argc, const char* argv[])
     std::cout << "hello g-ffmpeg!" << std::endl;
     //av_log_set_level(AV_LOG_TRACE);
 
-    test_demux("gx.mkv");//gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
-    //test_dec("gx.mkv");//gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
+    //test_demux("gx.mkv");//gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
+    test_dec("gx.mkv");//gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
     //test_enc_video("out.yuv");//out.yuv这个文件太大了，没有上传github，可以用解码的例子生成
     //test_enc_audio("out.pcm");//out.pcm这个文件太大了，没有上传github，可以用解码的例子生成
     //test_sws("out.yuv");//out.yuv这个文件太大了，没有上传github，可以用解码的例子生成
