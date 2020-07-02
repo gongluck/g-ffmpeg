@@ -130,6 +130,59 @@ int test_dec(const char* in)
     return 0;
 }
 
+int test_dec_h264(const char* in)
+{
+    gff::gdec vdec;
+    AVCodecParameters par = { AVMEDIA_TYPE_VIDEO, AV_CODEC_ID_H264, };
+    auto ret = vdec.copy_param(&par);
+    CHECKFFRET(ret);
+
+    std::ifstream f(in, std::ios::binary);
+    char buf[1024] = { 0 };
+    int nums = 0;
+    std::ofstream out("out.yuv", std::ios::binary | std::ios::trunc);
+    while (f.read(buf, sizeof(buf)))
+    {
+        uint32_t buflen = f.gcount();
+        uint32_t len = 0;
+        uint32_t uselen = 0;
+        do {
+            auto frame = gff::GetFrame();
+            ret = vdec.decode(buf+uselen, buflen-uselen, frame, len);
+            CHECKFFRET(ret);
+            if (frame->data[0] != nullptr)
+            {
+                if (frame->format == AV_PIX_FMT_YUV420P)
+                {                   
+                    out.write(reinterpret_cast<const char*>(frame->data[0]), static_cast<int64_t>(frame->linesize[0]) * frame->height);
+                    out.write(reinterpret_cast<const char*>(frame->data[1]), static_cast<int64_t>(frame->linesize[1]) * frame->height / 2);
+                    out.write(reinterpret_cast<const char*>(frame->data[2]), static_cast<int64_t>(frame->linesize[2]) * frame->height / 2);
+                }
+            }
+                
+            uselen += len;
+            while (ret == AVERROR(EAGAIN))
+            {
+                auto frame = gff::GetFrame();
+                ret = vdec.decode(nullptr, 0, frame, len);
+                CHECKFFRET(ret);
+                if (frame->data[0] != nullptr)
+                {
+                    if (frame->format == AV_PIX_FMT_YUV420P)
+                    {     
+                        out.write(reinterpret_cast<const char*>(frame->data[0]), static_cast<int64_t>(frame->linesize[0]) * frame->height);
+                        out.write(reinterpret_cast<const char*>(frame->data[1]), static_cast<int64_t>(frame->linesize[1]) * frame->height / 2);
+                        out.write(reinterpret_cast<const char*>(frame->data[2]), static_cast<int64_t>(frame->linesize[2]) * frame->height / 2);
+                    }
+                }
+            }
+        } while (buflen > uselen);
+    }
+
+    vdec.cleanup();
+    return 0;
+}
+
 int test_enc_video(const char* in)
 {
     const int width = 640;
@@ -420,7 +473,8 @@ int main(int argc, const char* argv[])
     //av_log_set_level(AV_LOG_TRACE);
 
     //test_demux("gx.mkv");//gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
-    test_dec("gx.mkv");//gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
+    //test_dec("gx.mkv");//gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
+    test_dec_h264("gx.h264");
     //test_enc_video("out.yuv");//out.yuv这个文件太大了，没有上传github，可以用解码的例子生成
     //test_enc_audio("out.pcm");//out.pcm这个文件太大了，没有上传github，可以用解码的例子生成
     //test_sws("out.yuv");//out.yuv这个文件太大了，没有上传github，可以用解码的例子生成

@@ -42,10 +42,17 @@ if(getstatus() == STOP)\
 }
 
 // 检查ffmpeg返回值
+#ifdef av_err2str
+#undef av_err2str
+#endif
+static char av_error[AV_ERROR_MAX_STRING_SIZE] = { 0 };
+#define av_err2str(errnum) \
+    av_make_error_string(av_error, AV_ERROR_MAX_STRING_SIZE, errnum)
+
 #define CHECKFFRET(ret) \
-if (ret < 0)\
+if (ret < 0 && ret != AVERROR(EAGAIN))\
 {\
-    av_log(nullptr, AV_LOG_ERROR, "%s %d : %d\n", __FILE__, __LINE__, ret);\
+    av_log(nullptr, AV_LOG_ERROR, "%s %d : %d %s\n", __FILE__, __LINE__, ret, av_err2str(ret));\
     return ret;\
 }
 

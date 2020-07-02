@@ -36,26 +36,64 @@ namespace gff
     public:
         ~gdemux();
 
-        // 打开输入
+        /*
+         * @brief                   打开输入
+         * @return                  错误码
+         * @param in[in]            输入URI
+         * @param fmt[in]           格式
+         * @param dicts[in]         自定义参数键值对
+         * @param read_packet[in]   自定义输入回调
+         * @param opaque[in]        自定义输入回调的用户参数
+         * @param bufsize[in]       avio缓冲区大小
+        */
         int open(const char* in, const char* fmt = nullptr, const std::vector<std::pair<std::string, std::string>>& dicts = {},
             int (*read_packet)(void* opaque, uint8_t* buf, int buf_size) = nullptr, void* opaque = nullptr, size_t bufsize = 1024);
 
-        // 读取一个AVPacket
+        /*
+         * @brief               读取一个AVPacket
+         * @return              错误码
+         * @param packet[out]   接收数据包
+        */
         int readpacket(std::shared_ptr<AVPacket> packet);
 
-        // 清理资源
+        /*
+         * @brief   清理资源
+         * @return  错误码
+        */
         int cleanup() override;
 
-        // 获取流索引
+        /*
+         * @brief               获取流索引
+         * @return              错误码
+         * @param videovec[out] 接收视频流索引
+         * @param audiovec[out] 接收音频流索引
+        */
         int get_steam_index(std::vector<unsigned int>& videovec, std::vector<unsigned int>& audiovec);
 
-        // 获取流参数
+        /*
+         * @brief               获取流参数
+         * @return              错误码
+         * @param index[in]     流索引
+         * @param par[in out]   接收流参数
+         * @param timebase[out] 接收时基
+        */
         int get_stream_par(unsigned int index, const AVCodecParameters*& par, AVRational& timebase);
 
-        // 跳转
+        /*
+         * @brief                   跳转
+         * @return                  错误码
+         * @param index[in]         流索引
+         * @param timestamp[in]     目标时间戳
+         * @param seekanyframe[in]  跳转到任意帧
+        */
         int seek_frame(int index, int64_t timestamp, bool seekanyframe = false);
 
-        // 时长
+        /*
+         * @brief                   获取时长
+         * @return                  错误码
+         * @param duration[out]     接收时长
+         * @param timebase[in]      时基
+        */
         int get_duration(int64_t& duration, AVRational timebase = {1,1});
 
     private:

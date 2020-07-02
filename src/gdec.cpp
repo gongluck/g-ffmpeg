@@ -24,6 +24,8 @@ namespace gff
 	{
 		LOCK();
 
+		av_parser_close(par_);
+		par_ = nullptr;
 		avcodec_free_context(&codectx_);
 		getstatus() = STOP;
 
@@ -47,6 +49,11 @@ namespace gff
 		if (codectx_ == nullptr)
 		{
 			CHECKFFRET(AVERROR(ENOMEM));
+		}
+		par_ = av_parser_init(codec->id);
+		if (par_ == nullptr)
+		{
+			CHECKFFRET(AVERROR(EINVAL));
 		}
 
 		ret = avcodec_parameters_to_context(codectx_, par);
@@ -111,5 +118,30 @@ namespace gff
 
 		// 接收解码数据
 		return avcodec_receive_frame(codectx_, frame.get());
+	}
+
+	int gdec::decode(const void* data, uint32_t size, std::shared_ptr<AVFrame> frame, uint32_t& len)
+	{
+		LOCK();
+		CHECKNOTSTOP();
+
+		if (par_ == nullptr || codectx_ == nullptr)
+		{
+			CHECKFFRET(AVERROR(EINVAL));
+		}
+
+		if (data != nullptr && size > 0)
+		{
+			len = av_parser_parse2(par_, codectx_, &pkt_->data, &pkt_->size, static_cast<const uint8_t*>(data), size, AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
+			CHECKFFRET(len);
+		}
+		
+		if (pkt_->size > 0)
+		{
+			auto ret = decode(pkt_, frame);
+			CHECKFFRET(ret);
+		}
+		
+		return 0;
 	}
 }//gff
