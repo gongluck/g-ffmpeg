@@ -120,7 +120,7 @@ namespace gff
 		return avcodec_receive_frame(codectx_, frame.get());
 	}
 
-	int gdec::decode(const void* data, uint32_t size, std::shared_ptr<AVFrame> frame, uint32_t& len)
+	int gdec::decode(const void* data, uint32_t size, std::shared_ptr<AVFrame> frame, int& len)
 	{
 		LOCK();
 		CHECKNOTSTOP();

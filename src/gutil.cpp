@@ -51,12 +51,14 @@ namespace gff
 		{
 			CHECKFFRET(AVERROR(EINVAL));
 		}
+		else
+		{
+			frame->width = w;
+			frame->height = h;
+			frame->format = fmt;
 
-		frame->width = w;
-		frame->height = h;
-		frame->format = fmt;
-
-		return av_frame_get_buffer(frame.get(), align);
+			return av_frame_get_buffer(frame.get(), align);
+		}
 	}
 
 	int GetFrameBuf(std::shared_ptr<AVFrame> frame, int samples, uint64_t layout, AVSampleFormat fmt, int align)
@@ -65,12 +67,14 @@ namespace gff
 		{
 			CHECKFFRET(AVERROR(EINVAL));
 		}
+		else
+		{
+			frame->nb_samples = samples;
+			frame->channel_layout = layout;
+			frame->format = fmt;
 
-		frame->nb_samples = samples;
-		frame->channel_layout = layout;
-		frame->format = fmt;
-
-		return av_frame_get_buffer(frame.get(), align);
+			return av_frame_get_buffer(frame.get(), align);
+		}
 	}
 
 	int frame_make_writable(std::shared_ptr<AVFrame> frame)

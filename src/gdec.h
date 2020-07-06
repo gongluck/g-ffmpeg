@@ -64,7 +64,7 @@ namespace gff
          * @param frame[out]    结果AVFrame
          * @param len[out]      已经处理的数据长度
         */
-        int decode(const void* data, uint32_t size, std::shared_ptr<AVFrame> frame, uint32_t& len);
+        int decode(const void* data, uint32_t size, std::shared_ptr<AVFrame> frame, int& len);
 
     private:
         AVCodecContext* codectx_ = nullptr;

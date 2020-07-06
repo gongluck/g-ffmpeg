@@ -139,12 +139,11 @@ int test_dec_h264(const char* in)
 
     std::ifstream f(in, std::ios::binary);
     char buf[1024] = { 0 };
-    int nums = 0;
     std::ofstream out("out.yuv", std::ios::binary | std::ios::trunc);
     while (f.read(buf, sizeof(buf)))
     {
         uint32_t buflen = static_cast<uint32_t>(f.gcount());
-        uint32_t len = 0;
+        int len = 0;
         uint32_t uselen = 0;
         do {
             auto frame = gff::GetFrame();
@@ -420,8 +419,6 @@ int test_swr(const char* in)
     const int bufsize = 48000 * 2 * 4;
     char* buf = static_cast<char*>(malloc(bufsize));
 
-    auto packet = gff::GetPacket();
-
     auto frame = gff::GetFrame();
     auto ret = gff::GetFrameBuf(frame, 48000, AV_CH_LAYOUT_STEREO, AV_SAMPLE_FMT_FLTP, 1);
     CHECKFFRET(ret);
@@ -432,7 +429,6 @@ int test_swr(const char* in)
     auto frame2 = gff::GetFrame();
     ret = gff::GetFrameBuf(frame2, 44100, AV_CH_LAYOUT_STEREO, AV_SAMPLE_FMT_S32P, 1);
     CHECKFFRET(ret);
-    auto size2 = av_get_bytes_per_sample(static_cast<AVSampleFormat>(frame2->format));
     ret = gff::frame_make_writable(frame2);
     CHECKFFRET(ret);
 
