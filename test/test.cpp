@@ -304,29 +304,36 @@ int test_mux(const char* out)
     }
 
     gff::genc enc;
-    enc.set_video_param("h264_qsv", 2000000, width, height, ivtimebase, { 24,1 }, 5, 0, AV_PIX_FMT_NV12);
+    auto ret = enc.set_video_param("h264_qsv", 10000000, width, height, ivtimebase, { 24,1 }, 5, 0, AV_PIX_FMT_NV12);
+    CHECKFFRET(ret);
 
     gff::gmux mux;
-    mux.create_output(out);
+    ret = mux.create_output(out);
+    CHECKFFRET(ret);
     const AVCodecContext* codectx = nullptr;
-    enc.get_codectx(codectx);
+    ret = enc.get_codectx(codectx);
+    CHECKFFRET(ret);
     int vindex = -1;
-    mux.create_stream(codectx, vindex);
-    mux.write_header();
+    ret = mux.create_stream(codectx, vindex);
+    CHECKFFRET(ret);
+    ret = mux.write_header();
+    CHECKFFRET(ret);
     AVRational ovtimebase;
-    mux.get_timebase(vindex, ovtimebase);
+    ret = mux.get_timebase(vindex, ovtimebase);
+    CHECKFFRET(ret);
 
     int i = 0;
     while (!nv12.eof())
     {
         auto packet = gff::GetPacket();
         auto frame = gff::GetFrame();
-        gff::GetFrameBuf(frame, width, height, AV_PIX_FMT_NV12, 1);
+        ret = gff::GetFrameBuf(frame, width, height, AV_PIX_FMT_NV12, 1);
+        CHECKFFRET(ret);
+        ret = av_frame_make_writable(frame.get());
+        CHECKFFRET(ret);
 
-        nv12.read(buf, size);
-        av_frame_make_writable(frame.get());
-        memcpy(frame->data[0], buf, frame->linesize[0] * frame->height);
-        memcpy(frame->data[1], buf + frame->linesize[0] * frame->height, frame->linesize[1] * frame->height / 2);
+        nv12.read(reinterpret_cast<char*>(frame->data[0]), frame->linesize[0] * frame->height);
+        nv12.read(reinterpret_cast<char*>(frame->data[1]), frame->linesize[0] * frame->height / 2);
         
         frame->pts = i++;
         if (enc.encode_push_frame(frame) == 0)
@@ -337,7 +344,8 @@ int test_mux(const char* out)
                 packet->dts = packet->pts;
                 packet->duration = 1;
                 std::cout << "pts : " << av_rescale_q(packet->pts, ovtimebase, { 1,1 }) << std::endl;
-                mux.write_packet(packet);
+                ret = mux.write_packet(packet);
+                CHECKFFRET(ret);
                 packet = gff::GetPacket();
             }
         }
@@ -485,8 +493,8 @@ int main(int argc, const char* argv[])
     //test_enc_video("out.yuv");
     //test_enc_audio("out.pcm");
     //test_sws("out.yuv");
-    test_swr("out.pcm");
-    //test_mux("out.mp4");
+    //test_swr("out.pcm");
+    test_mux("out.mp4");
 
     std::cin.get();
     return 0;

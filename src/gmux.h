@@ -33,22 +33,46 @@ namespace gff
     public:
         ~gmux();
 
-        // 销毁资源
+        /*
+         * @brief   清理资源
+         * @return  错误码
+        */
         int cleanup() override;
 
-        // 创建输出
+        /*
+         * @brief           创建输出
+         * @return          错误码
+         * @param out[in]   输出uri
+        */
         int create_output(const char* out);
 
-        // 创建流
+        /*
+         * @brief               创建输出
+         * @return              错误码
+         * @param codectx[in]   编码上下文
+         * @param index[out]    流索引
+        */
         int create_stream(const AVCodecContext* codectx, int& index);
 
-        // 写文件头
+        /*
+         * @brief               写头
+         * @return              错误码
+        */
         int write_header();
 
-        // 获取流时基
+        /*
+         * @brief               获取时基
+         * @return              错误码
+         * @param index[in]     流索引
+         * @param timebase[out] 时基
+        */
         int get_timebase(int index, AVRational& timebase);
 
-        // 写帧
+        /*
+         * @brief               写帧
+         * @return              错误码
+         * @param packet[in]    帧
+        */
         int write_packet(std::shared_ptr<AVPacket> packet);
 
     private:
