@@ -206,9 +206,9 @@ int test_enc_video(const char* in)
         ret = gff::frame_make_writable(frame);
         CHECKFFRET(ret);
 
-        yuv.read(reinterpret_cast<char*>(frame->data[0]), frame->linesize[0] * frame->height);
-        yuv.read(reinterpret_cast<char*>(frame->data[1]), frame->linesize[1] * frame->height / 2);
-        yuv.read(reinterpret_cast<char*>(frame->data[2]), frame->linesize[2] * frame->height / 2);
+        yuv.read(reinterpret_cast<char*>(frame->data[0]), static_cast<std::streamsize>(frame->linesize[0]) * frame->height);
+        yuv.read(reinterpret_cast<char*>(frame->data[1]), static_cast<std::streamsize>(frame->linesize[1]) * frame->height / 2);
+        yuv.read(reinterpret_cast<char*>(frame->data[2]), static_cast<std::streamsize>(frame->linesize[2]) * frame->height / 2);
 
         static int i = 0;
         frame->pts = i++;
@@ -296,11 +296,6 @@ int test_mux(const char* out)
     const int height = 480;
     const int size = width * height * 3 / 2;
     AVRational ivtimebase = { 1, 24 };
-    char* buf = static_cast<char*>(malloc(size));
-    if (buf == nullptr)
-    {
-        return 0;
-    }
 
     gff::genc enc;
     auto ret = enc.set_video_param("h264_qsv", 10000000, width, height, ivtimebase, { 24,1 }, 5, 0, AV_PIX_FMT_NV12);
@@ -331,8 +326,8 @@ int test_mux(const char* out)
         ret = av_frame_make_writable(frame.get());
         CHECKFFRET(ret);
 
-        nv12.read(reinterpret_cast<char*>(frame->data[0]), frame->linesize[0] * frame->height);
-        nv12.read(reinterpret_cast<char*>(frame->data[1]), frame->linesize[0] * frame->height / 2);
+        nv12.read(reinterpret_cast<char*>(frame->data[0]), static_cast<std::streamsize>(frame->linesize[0]) * frame->height);
+        nv12.read(reinterpret_cast<char*>(frame->data[1]), static_cast<std::streamsize>(frame->linesize[0]) * frame->height / 2);
         
         frame->pts = i++;
         if (enc.encode_push_frame(frame) == 0)
@@ -363,8 +358,6 @@ int test_mux(const char* out)
     }
     mux.cleanup();
     enc.cleanup();
-    free(buf);
-    buf = nullptr;
 
     return 0;
 }
@@ -373,7 +366,6 @@ int test_sws(const char* in)
 {
     const int width = 640;
     const int height = 480;
-    const int sizelen = width * height * 3 / 2;
     std::ifstream yuv(in, std::ios::binary);
     std::ofstream nv12("out.nv12", std::ios::binary);
 
