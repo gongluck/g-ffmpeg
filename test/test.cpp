@@ -369,45 +369,38 @@ int test_sws(const char* in)
     const int sizelen = width * height * 3 / 2;
     std::ifstream yuv(in, std::ios::binary);
     std::ofstream nv12("out.nv12", std::ios::binary);
-    char* buf = static_cast<char*>(malloc(sizelen));
-    if (buf == nullptr)
-    {
-        return 0;
-    }
 
     auto frame = gff::GetFrame();
     auto frame2 = gff::GetFrame();
-    gff::GetFrameBuf(frame, width, height, AV_PIX_FMT_YUV420P, 1);
-    gff::GetFrameBuf(frame2, width, height, AV_PIX_FMT_NV12, 1);
+    auto ret = gff::GetFrameBuf(frame, width, height, AV_PIX_FMT_YUV420P, 1);
+    CHECKFFRET(ret);
+    ret = gff::GetFrameBuf(frame2, width, height, AV_PIX_FMT_NV12, 1);
+    CHECKFFRET(ret);
 
     gff::gsws sws;
-    sws.create_sws(static_cast<AVPixelFormat>(frame->format), frame->width, frame->height,
+    ret = sws.create_sws(static_cast<AVPixelFormat>(frame->format), frame->width, frame->height,
         static_cast<AVPixelFormat>(frame2->format), frame2->width, frame2->height);
+    CHECKFFRET(ret);
 
     while (!yuv.eof())
     {
-        yuv.read(buf, sizelen);
-        gff::frame_make_writable(frame);
-        memcpy(frame->data[0], buf, frame->linesize[0] * frame->height);
-        memcpy(frame->data[1], buf + frame->linesize[0] * frame->height, frame->linesize[1] * frame->height / 2);
-        memcpy(frame->data[2], buf + frame->linesize[0] * frame->height * 5 / 4, frame->linesize[2] * frame->height / 2);
+        yuv.read(reinterpret_cast<char*>(frame->data[0]), width * height);
+        yuv.read(reinterpret_cast<char*>(frame->data[1]), width * height / 4);
+        yuv.read(reinterpret_cast<char*>(frame->data[2]), width * height / 4);
 
-        gff::frame_make_writable(frame2);
+        ret = gff::frame_make_writable(frame);
+        CHECKFFRET(ret);
+        ret = gff::frame_make_writable(frame2);
+        CHECKFFRET(ret);
+
         int h = sws.scale(frame->data, frame->linesize, 0, frame->height, frame2->data, frame2->linesize);
+        CHECKFFRET(h);
+
         nv12.write(reinterpret_cast<const char*>(frame2->data[0]), static_cast<int64_t>(frame2->linesize[0]) * h);
         nv12.write(reinterpret_cast<const char*>(frame2->data[1]), static_cast<int64_t>(frame2->linesize[1]) * h / 2);
-
-        auto frame = gff::GetFrame();
-        auto frame2 = gff::GetFrame();
-        gff::GetFrameBuf(frame, width, height, AV_PIX_FMT_YUV420P, 1);
-        gff::GetFrameBuf(frame2, width, height, AV_PIX_FMT_NV12, 1);
     }
 
     sws.cleanup();
-    free(buf);
-    buf = nullptr;
-
-    std::cout << "sws end." << std::endl;
 
     return 0;
 }
@@ -422,30 +415,36 @@ int test_swr(const char* in)
     auto packet = gff::GetPacket();
 
     auto frame = gff::GetFrame();
-    gff::GetFrameBuf(frame, 48000, AV_CH_LAYOUT_STEREO, AV_SAMPLE_FMT_FLTP, 1);
+    auto ret = gff::GetFrameBuf(frame, 48000, AV_CH_LAYOUT_STEREO, AV_SAMPLE_FMT_FLTP, 1);
+    CHECKFFRET(ret);
     auto size = av_get_bytes_per_sample(static_cast<AVSampleFormat>(frame->format));
-    gff::frame_make_writable(frame);
+    ret = gff::frame_make_writable(frame);
+    CHECKFFRET(ret);
 
     auto frame2 = gff::GetFrame();
-    gff::GetFrameBuf(frame2, 44100, AV_CH_LAYOUT_STEREO, AV_SAMPLE_FMT_S32P, 1);
+    ret = gff::GetFrameBuf(frame2, 44100, AV_CH_LAYOUT_STEREO, AV_SAMPLE_FMT_S32P, 1);
+    CHECKFFRET(ret);
     auto size2 = av_get_bytes_per_sample(static_cast<AVSampleFormat>(frame2->format));
-    gff::frame_make_writable(frame2);
+    ret = gff::frame_make_writable(frame2);
+    CHECKFFRET(ret);
 
     gff::gswr swr;
-    swr.create_swr(frame->channel_layout, frame->nb_samples, static_cast<AVSampleFormat>(frame->format),
+    ret = swr.create_swr(frame->channel_layout, frame->nb_samples, static_cast<AVSampleFormat>(frame->format),
         frame2->channel_layout, frame2->nb_samples, static_cast<AVSampleFormat>(frame2->format));
+    CHECKFFRET(ret);
 
     // 获取样本格式对应的每个样本大小(Byte)
     int persize = av_get_bytes_per_sample(static_cast<AVSampleFormat>(frame2->format));
     // 获取布局对应的通道数
-    int channel = av_get_channel_layout_nb_channels(frame2->channel_layout);
+    int channels = av_get_channel_layout_nb_channels(frame2->channel_layout);
 
-    auto len = static_cast<std::streamsize>(frame->nb_samples) * size * channel;
+    auto len = static_cast<std::streamsize>(frame->nb_samples) * size * channels;
 
     while (!pcm.eof())
     {
         pcm.read(buf, len);
-        gff::frame_make_writable(frame);
+        ret = gff::frame_make_writable(frame);
+        CHECKFFRET(ret);
 
         for (int i = 0; i < frame->nb_samples; ++i)
         {
@@ -453,12 +452,13 @@ int test_swr(const char* in)
             memcpy_s(frame->data[1] + size * i, size, buf + size * (2 * i + 1), size);
         }
         
-        gff::frame_make_writable(frame2);
+        ret = gff::frame_make_writable(frame2);
+        CHECKFFRET(ret);
         auto swssize = swr.convert(frame2->data, frame2->linesize[0], (const uint8_t * *)(frame->data), frame->nb_samples);
         // 拷贝音频数据
         for (int i = 0; i < swssize; ++i) // 每个样本
         {
-            for (int j = 0; j < channel; ++j) // 每个通道
+            for (int j = 0; j < channels; ++j) // 每个通道
             {
                 pcm2.write(reinterpret_cast<const char*>(frame2->data[j] + persize * i), persize);
             }
@@ -467,7 +467,6 @@ int test_swr(const char* in)
 
     swr.cleanup();
     free(buf);
-    std::cout << "swr end." << std::endl;
 
     return 0;
 }
@@ -484,9 +483,9 @@ int main(int argc, const char* argv[])
     //test_dec("gx.mkv");
     //test_dec_h264("gx.h264");
     //test_enc_video("out.yuv");
-    test_enc_audio("out.pcm");
+    //test_enc_audio("out.pcm");
     //test_sws("out.yuv");
-    //test_swr("out.pcm");
+    test_swr("out.pcm");
     //test_mux("out.mp4");
 
     std::cin.get();

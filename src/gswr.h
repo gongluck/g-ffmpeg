@@ -33,14 +33,33 @@ namespace gff
     public:
         ~gswr();
 
-        // 销毁资源
+        /*
+         * @brief   清理资源
+         * @return  错误码
+        */
         int cleanup() override;
 
-        // 设置参数
+        /*
+         * @brief               设置重采样参数
+         * @return              错误码
+         * @param slayout[in]   输入通道布局
+         * @param srate[in]     输入采样率
+         * @param sfmt[in]      输入格式
+         * @param dlayout[in]   输出通道布局
+         * @param drate[in]     输出采样率
+         * @param dfmt[in]      输出格式
+        */
         int create_swr(int64_t slayout, int srate, enum AVSampleFormat sfmt,
             int64_t dlayout, int drate, enum AVSampleFormat dfmt);
 
-        // 转换
+        /*
+         * @brief                   转换
+         * @return                  成功返回转换样本数，否则返回错误码
+         * @param srcSlice[in]      输入数据
+         * @param srcStride[in]     输入数据大小
+         * @param dst[out]          输出数据
+         * @param dstStride[out]    输出数据大小
+        */
         int convert(uint8_t** out, int out_count, const uint8_t** in, int in_count);
 
     private:
