@@ -294,7 +294,6 @@ int test_mux(const char* out)
     std::ifstream nv12("out.nv12", std::ios::binary);
     const int width = 640;
     const int height = 480;
-    const int size = width * height * 3 / 2;
     AVRational ivtimebase = { 1, 24 };
 
     gff::genc enc;
