@@ -12,7 +12,7 @@ int readpacket(void* opaque, uint8_t* buf, int buf_size)
 {
     static std::ifstream f("gx.mkv", std::ios::binary);
     f.read(reinterpret_cast<char*>(buf), buf_size);
-    buf_size = f.gcount();
+    buf_size = static_cast<int>(f.gcount());
     return buf_size <= 0 ? EOF : buf_size;
 }
 
@@ -143,7 +143,7 @@ int test_dec_h264(const char* in)
     std::ofstream out("out.yuv", std::ios::binary | std::ios::trunc);
     while (f.read(buf, sizeof(buf)))
     {
-        uint32_t buflen = f.gcount();
+        uint32_t buflen = static_cast<uint32_t>(f.gcount());
         uint32_t len = 0;
         uint32_t uselen = 0;
         do {
@@ -187,30 +187,30 @@ int test_enc_video(const char* in)
 {
     const int width = 640;
     const int height = 480;
-    const int sizelen = width * height * 3 / 2;
     std::ifstream yuv(in, std::ios::binary);
-    char* buf = static_cast<char*>(malloc(sizelen));
-    if (buf == nullptr)
-    {
-        return 0;
-    }
 
     gff::genc enc;
-    enc.set_video_param("libx264", 400000, width, height, { 1,25 }, { 25,1 }, 5, 0, AV_PIX_FMT_YUV420P);
+    auto ret = enc.set_video_param("libx264", 10000000, width, height, { 1,24 }, { 24,1 }, 5, 0, AV_PIX_FMT_YUV420P);
+    CHECKFFRET(ret);
     const AVCodecContext* codectx = nullptr;
-    enc.get_codectx(codectx);
+    ret = enc.get_codectx(codectx);
+    CHECKFFRET(ret);
+
+    std::ofstream out("out.h264", std::ios::binary | std::ios::trunc);
 
     while (!yuv.eof())
     {
         auto packet = gff::GetPacket();
         auto frame = gff::GetFrame();
-        gff::GetFrameBuf(frame, width, height, AV_PIX_FMT_YUV420P, 1);
+        ret = gff::GetFrameBuf(frame, width, height, AV_PIX_FMT_YUV420P, 1);
+        CHECKFFRET(ret);
+        ret = gff::frame_make_writable(frame);
+        CHECKFFRET(ret);
 
-        yuv.read(buf, sizelen);
-        gff::frame_make_writable(frame);
-        memcpy(frame->data[0], buf, frame->linesize[0] * frame->height);
-        memcpy(frame->data[1], buf + frame->linesize[0] * frame->height, frame->linesize[1] * frame->height / 2);
-        memcpy(frame->data[2], buf + frame->linesize[0] * frame->height * 5 / 4, frame->linesize[2] * frame->height / 2);
+        yuv.read(reinterpret_cast<char*>(frame->data[0]), frame->linesize[0] * frame->height);
+        yuv.read(reinterpret_cast<char*>(frame->data[1]), frame->linesize[1] * frame->height / 2);
+        yuv.read(reinterpret_cast<char*>(frame->data[2]), frame->linesize[2] * frame->height / 2);
+
         static int i = 0;
         frame->pts = i++;
         if (enc.encode_push_frame(frame) == 0)
@@ -218,6 +218,7 @@ int test_enc_video(const char* in)
             while (enc.encode_get_packet(packet) == 0)
             {
                 std::cout << "pts : " << av_rescale_q(packet->pts, codectx->time_base, { 1,1 }) << std::endl;
+                out.write(reinterpret_cast<char*>(packet->data), packet->size);
             }
         }
     }
@@ -227,10 +228,9 @@ int test_enc_video(const char* in)
     while (enc.encode_get_packet(packet) == 0)
     {
         std::cout << "pts : " << av_rescale_q(packet->pts, codectx->time_base, { 1,1 }) << std::endl;
+        out.write(reinterpret_cast<char*>(packet->data), packet->size);
     }
     enc.cleanup();
-    free(buf);
-    buf = nullptr;
 
     return 0;
 }
@@ -239,30 +239,34 @@ int test_enc_audio(const char* in)
 {
     const int bufsize = 10240;
     std::ifstream pcm("out.pcm", std::ios::binary);
+    std::ofstream out("out.mp3", std::ios::binary | std::ios::trunc);
     char buf[bufsize] = { 0 };
     gff::genc enc;
     int framesize = 0;
 
-    enc.set_audio_param("libmp3lame", 64000, 48000, AV_CH_LAYOUT_STEREO, 2, AV_SAMPLE_FMT_FLTP, framesize);
+    auto ret = enc.set_audio_param("libmp3lame", 64000, 48000, AV_CH_LAYOUT_STEREO, 2, AV_SAMPLE_FMT_FLTP, framesize);
+    CHECKFFRET(ret);
 
     auto packet = gff::GetPacket();
     auto frame = gff::GetFrame();
-    gff::GetFrameBuf(frame, framesize, AV_CH_LAYOUT_STEREO, AV_SAMPLE_FMT_FLTP, 1);
-    auto size = av_get_bytes_per_sample(static_cast<AVSampleFormat>(frame->format));
+    ret = gff::GetFrameBuf(frame, framesize, AV_CH_LAYOUT_STEREO, AV_SAMPLE_FMT_FLTP, 1);
+    CHECKFFRET(ret);
+    auto persamplesize = av_get_bytes_per_sample(static_cast<AVSampleFormat>(frame->format));
 
     const AVCodecContext* codectx = nullptr;
-    enc.get_codectx(codectx);
+    ret = enc.get_codectx(codectx);
+    CHECKFFRET(ret);
 
     while (!pcm.eof())
     {
-        auto len = static_cast<std::streamsize>(framesize) * size * av_get_channel_layout_nb_channels(frame->channel_layout);
-        pcm.read(buf, static_cast<std::streamsize>(framesize) * size * av_get_channel_layout_nb_channels(frame->channel_layout));
-        gff::frame_make_writable(frame);
+        pcm.read(buf, static_cast<std::streamsize>(framesize) * persamplesize * av_get_channel_layout_nb_channels(frame->channel_layout));
+        ret = gff::frame_make_writable(frame);
+        CHECKFFRET(ret);
 
         for (int i = 0; i < frame->nb_samples; ++i)
         {
-            memcpy_s(frame->data[0] + size * i, size, buf + size * (2 * i), size);
-            memcpy_s(frame->data[1] + size * i, size, buf + size * (2 * i + 1), size);
+            memcpy_s(frame->data[0] + persamplesize * i, persamplesize, buf + persamplesize * (2 * i), persamplesize);
+            memcpy_s(frame->data[1] + persamplesize * i, persamplesize, buf + persamplesize * (2 * i + 1), persamplesize);
         }
         static int i = 0;
         frame->pts = av_rescale_q(static_cast<int64_t>(frame->nb_samples) * i++, { 1, 48000 }, codectx->time_base);
@@ -271,6 +275,7 @@ int test_enc_audio(const char* in)
             while (enc.encode_get_packet(packet) >= 0)
             {
                 std::cout << "pts : " << av_rescale_q(packet->pts, codectx->time_base, { 1,1 }) << std::endl;
+                out.write(reinterpret_cast<char*>(packet->data), packet->size);
             }
         }
     }
@@ -472,14 +477,17 @@ int main(int argc, const char* argv[])
     std::cout << "hello g-ffmpeg!" << std::endl;
     //av_log_set_level(AV_LOG_TRACE);
 
-    //test_demux("gx.mkv");//gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
-    //test_dec("gx.mkv");//gx.mkv在https://github.com/gongluck/RandB/blob/master/media/gx.mkv
-    test_dec_h264("gx.h264");
-    //test_enc_video("out.yuv");//out.yuv这个文件太大了，没有上传github，可以用解码的例子生成
-    //test_enc_audio("out.pcm");//out.pcm这个文件太大了，没有上传github，可以用解码的例子生成
-    //test_sws("out.yuv");//out.yuv这个文件太大了，没有上传github，可以用解码的例子生成
-    //test_swr("out.pcm");//out.pcm这个文件太大了，没有上传github，可以用解码的例子生成
-    //test_mux("out.mp4");//out.nv12这个文件太大了，没有上传github，可以用解码的例子生成
+    /// 各个媒体文件只有可以从我的RandB仓库获取，https://github.com/gongluck/RandB.git
+    /// out.xxx等文件可以通过解码的例子生成
+
+    //test_demux("gx.mkv");
+    //test_dec("gx.mkv");
+    //test_dec_h264("gx.h264");
+    //test_enc_video("out.yuv");
+    test_enc_audio("out.pcm");
+    //test_sws("out.yuv");
+    //test_swr("out.pcm");
+    //test_mux("out.mp4");
 
     std::cin.get();
     return 0;
