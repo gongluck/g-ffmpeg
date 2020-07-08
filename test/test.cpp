@@ -1,5 +1,8 @@
 ﻿#include <iostream>
 #include <fstream>
+
+#include <convert.h>
+
 #include "../src/gutil.h"
 #include "../src/gdemux.h"
 #include "../src/gdec.h"
@@ -466,6 +469,40 @@ int test_swr(const char* in)
     return 0;
 }
 
+int test_record_audio()
+{
+    std::string in;
+    auto ret = gconvert::ansi2utf8("audio=麦克风 (Realtek High Definition Audio)", in);
+    CHECKFFRET(ret);
+
+    gff::gdemux audio;
+    ret = audio.open(in.c_str(), "dshow");
+    CHECKFFRET(ret);
+
+    std::ofstream out("save.pcm", std::ios::binary);
+    auto packet = gff::GetPacket();
+    bool stop = false;
+
+    std::thread th([&]() {
+        while (audio.readpacket(packet) == 0 && !stop)
+        {
+            out.write(reinterpret_cast<char*>(packet->data), packet->size);
+        }
+    });
+    
+    std::cin.get();
+    stop = true;
+    if (th.joinable())
+    {
+        th.join();
+    }
+
+    out.close();
+    audio.cleanup();
+
+    return 0;
+}
+
 int main(int argc, const char* argv[])
 {
     std::cout << "hello g-ffmpeg!" << std::endl;
@@ -481,7 +518,9 @@ int main(int argc, const char* argv[])
     //test_enc_audio("out.pcm");
     //test_sws("out.yuv");
     //test_swr("out.pcm");
-    test_mux("out.mp4");
+    //test_mux("out.mp4");
+
+    test_record_audio();
 
     std::cin.get();
     return 0;
