@@ -60,7 +60,7 @@ namespace gff
             {
                 CHECKFFRET(AVERROR(ENOMEM));
             }
-            auto avioctx = avio_alloc_context(aviobuf, 1024, 0, opaque, read_packet, nullptr, nullptr);
+            auto avioctx = avio_alloc_context(aviobuf, bufsize, 0, opaque, read_packet, nullptr, nullptr);
             if (avioctx == nullptr)
             {
                 CHECKFFRET(AVERROR(ENOMEM));
