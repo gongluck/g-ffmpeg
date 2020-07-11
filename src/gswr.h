@@ -54,7 +54,7 @@ namespace gff
 
         /*
          * @brief                   转换
-         * @return                  成功返回转换样本数，否则返回错误码
+         * @return                  成功返回每个输入通道转换的样本数，否则返回错误码
          * @param srcSlice[in]      输入数据
          * @param srcStride[in]     输入数据大小(每通道in[index]的样本数)
          * @param dst[out]          输出数据

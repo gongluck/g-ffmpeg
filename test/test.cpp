@@ -600,21 +600,13 @@ int test_record_audio()
 	gff::gswr swr;
 	ret = swr.create_swr(
 		par->channel_layout == 0 ? AV_CH_LAYOUT_STEREO : par->channel_layout, par->sample_rate, static_cast<enum AVSampleFormat>(par->format),
-		AV_CH_LAYOUT_STEREO, 44100, AV_SAMPLE_FMT_FLT);
+		AV_CH_LAYOUT_STEREO, 44100, AV_SAMPLE_FMT_FLTP);
 	CHECKFFRET(ret);
 
 	auto dframe = gff::GetFrame();
-	ret = gff::GetFrameBuf(dframe, 44100, AV_CH_LAYOUT_STEREO, AV_SAMPLE_FMT_FLT, 0);
+	ret = gff::GetFrameBuf(dframe, 44100, AV_CH_LAYOUT_STEREO, AV_SAMPLE_FMT_FLTP, 0);
 	CHECKFFRET(ret);
 	ret = gff::frame_make_writable(dframe);
-	CHECKFFRET(ret);
-
-	uint8_t** data = nullptr;
-	int linesize = 0;
-	ret = av_samples_alloc_array_and_samples(
-		&data, &linesize, par->channels,
-		par->sample_rate / par->channels,
-		static_cast<enum AVSampleFormat>(par->format), 1);
 	CHECKFFRET(ret);
 
 	std::ofstream out("save.pcm", std::ios::binary);
@@ -624,10 +616,21 @@ int test_record_audio()
 	std::thread th([&]() {
 		while (audio.readpacket(packet) == 0 && !stop)
 		{
-			ret = swr.convert(dframe->data, dframe->linesize[0], const_cast<const uint8_t**>(&packet->data), packet->size / av_get_bytes_per_sample(static_cast<enum AVSampleFormat>(par->format)));
+			ret = swr.convert(dframe->data, dframe->linesize[0] / av_get_bytes_per_sample(static_cast<enum AVSampleFormat>(dframe->format)), const_cast<const uint8_t**>(&packet->data), packet->size / av_get_bytes_per_sample(static_cast<enum AVSampleFormat>(par->format)));
 			CHECKFFRET(ret);
 			std::cout << ret << std::endl;
-			out.write(reinterpret_cast<char*>(dframe->data[0]), static_cast<std::streamsize>(ret) * av_get_bytes_per_sample(static_cast<enum AVSampleFormat>(dframe->format)));
+
+			// 拷贝音频数据
+			for (int i = 0; i < ret / par->channels; ++i) // 每个样本
+			{
+				for (int j = 0; j < par->channels; ++j) // 每个通道
+				{
+					auto persize = av_get_bytes_per_sample(static_cast<enum AVSampleFormat>(dframe->format));
+					out.write(reinterpret_cast<const char*>(dframe->data[j] + persize * i), persize);
+				}
+			}
+			
+			//out.write(reinterpret_cast<char*>(dframe->data[0]), static_cast<std::streamsize>(ret) * av_get_bytes_per_sample(static_cast<enum AVSampleFormat>(dframe->format)));
 			//out.write(reinterpret_cast<char*>(packet->data), packet->size);
 		}
 	});
