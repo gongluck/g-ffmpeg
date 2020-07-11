@@ -120,7 +120,7 @@ namespace gff
             CHECKFFRET(AVERROR(EINVAL));
         }
 
-        return avcodec_send_frame(codectx_, frame.get());
+        return avcodec_send_frame(codectx_, frame == nullptr ? nullptr : frame.get());
     }
 
     int genc::encode_get_packet(std::shared_ptr<AVPacket> packet)

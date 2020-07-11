@@ -615,13 +615,17 @@ int test_record_audio()
 	ret = gff::frame_make_writable(dframe);
 	CHECKFFRET(ret);
 
-	std::ofstream out("save.pcm", std::ios::binary);
+	std::ofstream out("save.mp3", std::ios::binary);
 	//std::ofstream sout("ssave.pcm", std::ios::binary);
 	auto packet = gff::GetPacket();
 	bool stop = false;
 
 	auto framesize = 1024;
-	AVAudioFifo* fifo = av_audio_fifo_alloc(samplefmt, channels, framesize*2);
+	gff::genc enc;
+	ret = enc.set_audio_param("libmp3lame", 128000, samplerate, par->channel_layout == 0 ? AV_CH_LAYOUT_STEREO : par->channel_layout,
+		channels, samplefmt, framesize);
+	CHECKFFRET(ret);
+	AVAudioFifo* fifo = av_audio_fifo_alloc(samplefmt, channels, framesize * 2);
 	auto ff = gff::GetFrame();
 	ret = gff::GetFrameBuf(ff, framesize, AV_CH_LAYOUT_STEREO, samplefmt, 0);
 	CHECKFFRET(ret);
@@ -642,14 +646,33 @@ int test_record_audio()
 				ret = av_audio_fifo_read(fifo, reinterpret_cast<void**>(ff->data), framesize);
 				CHECKFFRET(ret);
 
-				// 拷贝音频数据
-				for (int i = 0; i < ret; ++i) // 每个样本
+				ret = enc.encode_push_frame(ff);
+				CHECKFFRET(ret);
+				if (ret >= 0)
 				{
-					for (int j = 0; j < channels; ++j) // 每个通道
-					{
-						out.write(reinterpret_cast<const char*>(ff->data[j] + persize * i), persize);
-					}
+					do{
+						ret = enc.encode_get_packet(packet);
+						CHECKFFRET(ret);
+						if (ret >= 0)
+						{
+							out.write(reinterpret_cast<char*>(packet->data), packet->size);
+							continue;
+						}
+						else
+						{
+							break;
+						}
+					} while (true);	
 				}
+
+				//// 拷贝音频数据
+				//for (int i = 0; i < ret; ++i) // 每个样本
+				//{
+				//	for (int j = 0; j < channels; ++j) // 每个通道
+				//	{
+				//		out.write(reinterpret_cast<const char*>(ff->data[j] + persize * i), persize);
+				//	}
+				//}
 			}
 
 			//// 拷贝音频数据
@@ -681,14 +704,52 @@ int test_record_audio()
 		ret = av_audio_fifo_read(fifo, reinterpret_cast<void**>(ff->data), framesize);
 		CHECKFFRET(ret);
 
-		// 拷贝音频数据
-		for (int i = 0; i < ret / channels; ++i) // 每个样本
+		ret = enc.encode_push_frame(ff);
+		CHECKFFRET(ret);
+		if (ret >= 0)
 		{
-			for (int j = 0; j < channels; ++j) // 每个通道
-			{
-				out.write(reinterpret_cast<const char*>(ff->data[j] + persize * i), persize);
-			}
+			do {
+				ret = enc.encode_get_packet(packet);
+				CHECKFFRET(ret);
+				if (ret >= 0)
+				{
+					out.write(reinterpret_cast<char*>(packet->data), packet->size);
+					continue;
+				}
+				else
+				{
+					break;
+				}
+			} while (true);
 		}
+
+		//// 拷贝音频数据
+		//for (int i = 0; i < ret / channels; ++i) // 每个样本
+		//{
+		//	for (int j = 0; j < channels; ++j) // 每个通道
+		//	{
+		//		out.write(reinterpret_cast<const char*>(ff->data[j] + persize * i), persize);
+		//	}
+		//}
+	}
+
+	ret = enc.encode_push_frame(nullptr);
+	CHECKFFRET(ret);
+	if (ret >= 0)
+	{
+		do {
+			ret = enc.encode_get_packet(packet);
+			CHECKFFRET(ret);
+			if (ret >= 0)
+			{
+				out.write(reinterpret_cast<char*>(packet->data), packet->size);
+				continue;
+			}
+			else
+			{
+				break;
+			}
+		} while (true);
 	}
 
 	av_audio_fifo_free(fifo);
