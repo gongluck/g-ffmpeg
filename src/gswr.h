@@ -56,9 +56,9 @@ namespace gff
          * @brief                   转换
          * @return                  成功返回转换样本数，否则返回错误码
          * @param srcSlice[in]      输入数据
-         * @param srcStride[in]     输入数据大小
+         * @param srcStride[in]     输入数据大小(每通道in[index]的样本数)
          * @param dst[out]          输出数据
-         * @param dstStride[out]    输出数据大小
+         * @param dstStride[out]    输出数据大小(每通道in[index]的样本数)
         */
         int convert(uint8_t** out, int out_count, const uint8_t** in, int in_count);
 
