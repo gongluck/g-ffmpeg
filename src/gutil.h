@@ -21,6 +21,7 @@ extern "C"
 #endif
 
 #include <libavutil/opt.h>
+#include <libavutil/audio_fifo.h>
 #include <libavcodec/avcodec.h>
 
 #ifdef __cplusplus

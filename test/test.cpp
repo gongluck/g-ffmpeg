@@ -597,38 +597,70 @@ int test_record_audio()
 	ret = audio.get_stream_par(0, par, timebase);
 	CHECKFFRET(ret);
 
+	auto samplerate = 44100;//采样率
+	enum AVSampleFormat samplefmt = AV_SAMPLE_FMT_FLTP;//采样格式
+	auto persize = av_get_bytes_per_sample(static_cast<enum AVSampleFormat>(samplefmt));//每个采样数据大小
+	auto channels = av_get_channel_layout_nb_channels(AV_CH_LAYOUT_STEREO);
+
 	gff::gswr swr;
 	ret = swr.create_swr(
 		par->channel_layout == 0 ? AV_CH_LAYOUT_STEREO : par->channel_layout, par->sample_rate, static_cast<enum AVSampleFormat>(par->format),
-		AV_CH_LAYOUT_STEREO, 44100, AV_SAMPLE_FMT_FLTP);
+		AV_CH_LAYOUT_STEREO, samplerate, samplefmt);
 	CHECKFFRET(ret);
 
+	//重采样帧
 	auto dframe = gff::GetFrame();
-	ret = gff::GetFrameBuf(dframe, 44100, AV_CH_LAYOUT_STEREO, AV_SAMPLE_FMT_FLTP, 0);
+	ret = gff::GetFrameBuf(dframe, samplerate, AV_CH_LAYOUT_STEREO, samplefmt, 0);
 	CHECKFFRET(ret);
 	ret = gff::frame_make_writable(dframe);
 	CHECKFFRET(ret);
 
 	std::ofstream out("save.pcm", std::ios::binary);
+	//std::ofstream sout("ssave.pcm", std::ios::binary);
 	auto packet = gff::GetPacket();
 	bool stop = false;
+
+	auto framesize = 1024;
+	AVAudioFifo* fifo = av_audio_fifo_alloc(samplefmt, channels, framesize*2);
+	auto ff = gff::GetFrame();
+	ret = gff::GetFrameBuf(ff, framesize, AV_CH_LAYOUT_STEREO, samplefmt, 0);
+	CHECKFFRET(ret);
 
 	std::thread th([&]() {
 		while (audio.readpacket(packet) == 0 && !stop)
 		{
-			ret = swr.convert(dframe->data, dframe->linesize[0] / av_get_bytes_per_sample(static_cast<enum AVSampleFormat>(dframe->format)), const_cast<const uint8_t**>(&packet->data), packet->size / av_get_bytes_per_sample(static_cast<enum AVSampleFormat>(par->format)));
+			ret = swr.convert(dframe->data, dframe->linesize[0] / persize, 
+				const_cast<const uint8_t**>(&packet->data), packet->size / persize);
 			CHECKFFRET(ret);
-			std::cout << ret << std::endl;
 
-			// 拷贝音频数据
-			for (int i = 0; i < ret / par->channels; ++i) // 每个样本
+			ret = av_audio_fifo_write(fifo, reinterpret_cast<void**>(dframe->data), ret);
+			CHECKFFRET(ret);
+			while (av_audio_fifo_size(fifo) >= framesize)
 			{
-				for (int j = 0; j < par->channels; ++j) // 每个通道
+				ret = gff::frame_make_writable(ff);
+				CHECKFFRET(ret);
+				ret = av_audio_fifo_read(fifo, reinterpret_cast<void**>(ff->data), framesize);
+				CHECKFFRET(ret);
+
+				// 拷贝音频数据
+				for (int i = 0; i < ret; ++i) // 每个样本
 				{
-					auto persize = av_get_bytes_per_sample(static_cast<enum AVSampleFormat>(dframe->format));
-					out.write(reinterpret_cast<const char*>(dframe->data[j] + persize * i), persize);
+					for (int j = 0; j < channels; ++j) // 每个通道
+					{
+						out.write(reinterpret_cast<const char*>(ff->data[j] + persize * i), persize);
+					}
 				}
 			}
+
+			//// 拷贝音频数据
+			//for (int i = 0; i < 44100 / par->channels; ++i) // 每个样本
+			//{
+			//	for (int j = 0; j < par->channels; ++j) // 每个通道
+			//	{
+			//		auto persize = av_get_bytes_per_sample(static_cast<enum AVSampleFormat>(dframe->format));
+			//		sout.write(reinterpret_cast<const char*>(dframe->data[j] + persize * i), persize);
+			//	}
+			//}
 			
 			//out.write(reinterpret_cast<char*>(dframe->data[0]), static_cast<std::streamsize>(ret) * av_get_bytes_per_sample(static_cast<enum AVSampleFormat>(dframe->format)));
 			//out.write(reinterpret_cast<char*>(packet->data), packet->size);
@@ -642,6 +674,24 @@ int test_record_audio()
 		th.join();
 	}
 
+	while (av_audio_fifo_size(fifo) > 0)
+	{
+		ret = gff::frame_make_writable(ff);
+		CHECKFFRET(ret);
+		ret = av_audio_fifo_read(fifo, reinterpret_cast<void**>(ff->data), framesize);
+		CHECKFFRET(ret);
+
+		// 拷贝音频数据
+		for (int i = 0; i < ret / channels; ++i) // 每个样本
+		{
+			for (int j = 0; j < channels; ++j) // 每个通道
+			{
+				out.write(reinterpret_cast<const char*>(ff->data[j] + persize * i), persize);
+			}
+		}
+	}
+
+	av_audio_fifo_free(fifo);
 	out.close();
 	audio.cleanup();
 
