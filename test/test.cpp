@@ -759,6 +759,45 @@ int test_record_audio()
 	return 0;
 }
 
+int test_record_video()
+{
+	std::string in;
+	auto ret = gconvert::ansi2utf8("video=Chicony USB 2.0 Camera", in);
+	CHECKFFRET(ret);
+
+	gff::gdemux video;
+	ret = video.open(in.c_str(), "dshow", { {"framerate", "30"}});
+	CHECKFFRET(ret);
+	const AVCodecParameters* par = nullptr;
+	AVRational timebase = { 0 };
+	ret = video.get_stream_par(0, par, timebase);
+	CHECKFFRET(ret);
+
+	std::ofstream out("save.jpg", std::ios::binary);
+	auto packet = gff::GetPacket();
+	bool stop = false;
+
+	std::thread th([&]() {
+		while (video.readpacket(packet) == 0 && !stop)
+		{
+			std::cout << packet->size << std::endl;
+			out.write(reinterpret_cast<char*>(packet->data), packet->size);
+		}
+	});
+
+	std::cin.get();
+	stop = true;
+	if (th.joinable())
+	{
+		th.join();
+	}
+
+	out.close();
+	video.cleanup();
+
+	return 0;
+}
+
 int main(int argc, const char* argv[])
 {
 	std::cout << "hello g-ffmpeg!" << std::endl;
@@ -776,7 +815,8 @@ int main(int argc, const char* argv[])
 	//test_swr("out.pcm");
 	//test_mux("out.mp4");
 
-	test_record_audio();
+	//test_record_audio();
+	test_record_video();
 
 	std::cin.get();
 	return 0;
