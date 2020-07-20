@@ -773,15 +773,39 @@ int test_record_video()
 	ret = video.get_stream_par(0, par, timebase);
 	CHECKFFRET(ret);
 
-	std::ofstream out("save.jpg", std::ios::binary);
+	//std::ofstream out("save.jpg", std::ios::binary);
+	std::ofstream out("save.yuv", std::ios::binary);
 	auto packet = gff::GetPacket();
 	bool stop = false;
+
+	gff::gdec dec;
+	ret = dec.copy_param(par);
+	CHECKFFRET(ret);
+
+	enum AVPixelFormat pixfmt = AV_PIX_FMT_YUV420P;
+	gff::gsws sws;
+	ret = sws.create_sws(static_cast<AVPixelFormat>(par->format), par->width, par->height,
+		pixfmt, par->width, par->height);
+	CHECKFFRET(ret);
+
+	auto frame = gff::GetFrame();
+	auto dframe = gff::GetFrame();
+	ret = gff::GetFrameBuf(dframe, par->width, par->height, pixfmt, 0);
+	CHECKFFRET(ret);
 
 	std::thread th([&]() {
 		while (video.readpacket(packet) == 0 && !stop)
 		{
-			std::cout << packet->size << std::endl;
-			out.write(reinterpret_cast<char*>(packet->data), packet->size);
+			//out.write(reinterpret_cast<char*>(packet->data), packet->size);
+			ret = dec.decode(packet, frame);
+			CHECKFFRET(ret);
+		
+			ret = sws.scale(frame->data, frame->linesize, 0, par->height,
+				dframe->data, dframe->linesize);
+			CHECKFFRET(ret);
+			out.write(reinterpret_cast<char*>(dframe->data[0]), static_cast<int64_t>(dframe->linesize[0]) * dframe->height);
+			out.write(reinterpret_cast<char*>(dframe->data[1]), static_cast<int64_t>(dframe->linesize[1]) * dframe->height / 2);
+			out.write(reinterpret_cast<char*>(dframe->data[2]), static_cast<int64_t>(dframe->linesize[2]) * dframe->height / 2);
 		}
 	});
 
