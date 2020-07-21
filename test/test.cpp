@@ -774,7 +774,8 @@ int test_record_video()
 	CHECKFFRET(ret);
 
 	//std::ofstream out("save.jpg", std::ios::binary);
-	std::ofstream out("save.yuv", std::ios::binary);
+	//std::ofstream out("save.yuv", std::ios::binary);
+	std::ofstream out("save.264", std::ios::binary);
 	auto packet = gff::GetPacket();
 	bool stop = false;
 
@@ -793,6 +794,13 @@ int test_record_video()
 	ret = gff::GetFrameBuf(dframe, par->width, par->height, pixfmt, 0);
 	CHECKFFRET(ret);
 
+	gff::genc enc;
+	ret = enc.set_video_param("libx264", 1000000, par->width, par->height,
+		{ 1, 30 }, { 30, 1 }, 120, 60, pixfmt);
+	CHECKFFRET(ret);
+
+	static uint64_t pts = 0;
+
 	std::thread th([&]() {
 		while (video.readpacket(packet) == 0 && !stop)
 		{
@@ -800,12 +808,32 @@ int test_record_video()
 			ret = dec.decode(packet, frame);
 			CHECKFFRET(ret);
 		
-			ret = sws.scale(frame->data, frame->linesize, 0, par->height,
-				dframe->data, dframe->linesize);
-			CHECKFFRET(ret);
-			out.write(reinterpret_cast<char*>(dframe->data[0]), static_cast<int64_t>(dframe->linesize[0]) * dframe->height);
-			out.write(reinterpret_cast<char*>(dframe->data[1]), static_cast<int64_t>(dframe->linesize[1]) * dframe->height / 2);
-			out.write(reinterpret_cast<char*>(dframe->data[2]), static_cast<int64_t>(dframe->linesize[2]) * dframe->height / 2);
+			do 
+			{
+				ret = sws.scale(frame->data, frame->linesize, 0, par->height,
+					dframe->data, dframe->linesize);
+				CHECKFFRET(ret);
+				/*out.write(reinterpret_cast<char*>(dframe->data[0]), static_cast<int64_t>(dframe->linesize[0]) * dframe->height);
+				out.write(reinterpret_cast<char*>(dframe->data[1]), static_cast<int64_t>(dframe->linesize[1]) * dframe->height / 2);
+				out.write(reinterpret_cast<char*>(dframe->data[2]), static_cast<int64_t>(dframe->linesize[2]) * dframe->height / 2);*/
+
+				dframe->pts = pts++;
+				ret = enc.encode_push_frame(dframe);
+				CHECKFFRET(ret);
+
+				while (ret >= 0)
+				{
+					ret = enc.encode_get_packet(packet);
+					CHECKFFRET(ret);
+					if (ret >= 0)
+					{
+						out.write(reinterpret_cast<char*>(packet->data), packet->size);
+					}
+				}
+
+				ret = dec.decode(nullptr, frame);
+			} while (ret >= 0);
+			
 		}
 	});
 
@@ -814,6 +842,18 @@ int test_record_video()
 	if (th.joinable())
 	{
 		th.join();
+	}
+
+	ret = enc.encode_push_frame(nullptr);
+	CHECKFFRET(ret);
+	while (ret >= 0)
+	{
+		ret = enc.encode_get_packet(packet);
+		CHECKFFRET(ret);
+		if (ret >= 0)
+		{
+			out.write(reinterpret_cast<char*>(packet->data), packet->size);
+		}
 	}
 
 	out.close();
